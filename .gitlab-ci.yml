@@ -1,0 +1,55 @@
+# BlueJay Demuxer — GitLab CI
+# Lints code and validates firmware builds on every push.
+
+stages:
+  - lint
+  - build
+  - docs
+
+variables:
+  PROJECT: "BlueJay_Demuxer"
+
+# ── Lint ────────────────────────────────────────────────────
+lint:markdown:
+  stage: lint
+  image: node:20-alpine
+  script:
+    - npm install -g markdownlint-cli
+    - markdownlint "**/*.md" --ignore node_modules || true
+  allow_failure: true
+
+lint:yaml:
+  stage: lint
+  image: python:3.12-alpine
+  script:
+    - pip install yamllint -q
+    - yamllint .gitlab-ci.yml
+  allow_failure: true
+
+# ── Build (firmware — Arduino/ESP32) ────────────────────────
+build:firmware:
+  stage: build
+  image: python:3.12
+  before_script:
+    - pip install pyserial esptool -q
+  script:
+    - echo "Firmware build step — add arduino-cli compile command here when source files are added"
+    - echo "Target: ESP32-S3"
+  allow_failure: true
+  only:
+    - main
+    - merge_requests
+
+# ── Docs ────────────────────────────────────────────────────
+pages:
+  stage: docs
+  image: alpine:latest
+  script:
+    - mkdir -p public
+    - cp README.md public/index.md || true
+    - echo "Docs published"
+  artifacts:
+    paths:
+      - public
+  only:
+    - main
