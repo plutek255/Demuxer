@@ -1,0 +1,12 @@
+// demuxer init — installer script
+// runs on first boot or manual reinstall
+
+print("Running Demuxer Init installer...")
+download("https://assets.bluejay.dev/demuxer/init/icon.png" -> "assets/icon.png")
+download("https://assets.bluejay.dev/demuxer/init/splash.png" -> "assets/splash.png")
+copy("templates/config.json" -> "config.json")
+copy("firmware/profiles/default.json" -> "profiles/active.json")
+register("Demuxer.dmxb")
+print("Assets installed.")
+print("Default profile loaded.")
+print("Installation complete.")
