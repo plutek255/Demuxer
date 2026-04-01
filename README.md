@@ -1,3 +1,5 @@
+![BlueJay Logo](https://gitlab.com/zynecon903-group/BlueJay_Demuxer/-/raw/main/assets/JPEG_image.jpeg)
+
 **Manufacturer:** BlueJay Electronics LLC
 **Make:** Demuxer
 **Current State:** Beta (Init)
