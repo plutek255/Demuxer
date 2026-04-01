@@ -1,0 +1,46 @@
+// demuxer init — main runtime script
+// bluejay electronics LLC
+
+print("Demuxer Init v0.1.0-beta starting...")
+print("Manufacturer: BlueJay Electronics LLC")
+
+set flexReady = 0
+set imuReady = 0
+set foilReady = 0
+set hapticReady = 0
+set screenReady = 0
+
+print("Initializing flex sensors...")
+set flexReady = 1
+
+print("Initializing IMU (6DOF)...")
+set imuReady = 1
+
+print("Initializing foil contacts...")
+set foilReady = 1
+
+print("Initializing haptic motors...")
+set hapticReady = 1
+
+print("Initializing forearm touchscreen...")
+set screenReady = 1
+
+if (flexReady == 1) {
+  print("Flex sensors OK")
+}
+if (imuReady == 1) {
+  print("IMU OK")
+}
+if (foilReady == 1) {
+  print("Foil contacts OK")
+}
+if (hapticReady == 1) {
+  print("Haptic motors OK")
+}
+if (screenReady == 1) {
+  print("Touchscreen OK")
+}
+
+print("Loading default profile...")
+print("Calibration check: hold FOIL_RECAL for 3s to recalibrate")
+print("Demuxer Init ready.")
