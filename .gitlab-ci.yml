@@ -1,5 +1,4 @@
 # BlueJay Demuxer — GitLab CI
-# Lints code and validates firmware builds on every push.
 
 stages:
   - lint
@@ -8,6 +7,10 @@ stages:
 
 variables:
   PROJECT: "BlueJay_Demuxer"
+
+default:
+  tags:
+    - saas-linux-small-amd64
 
 # ── Lint ────────────────────────────────────────────────────
 lint:markdown:
@@ -26,15 +29,15 @@ lint:yaml:
     - yamllint .gitlab-ci.yml
   allow_failure: true
 
-# ── Build (firmware — Arduino/ESP32) ────────────────────────
+# ── Build (firmware — ESP32-S3) ──────────────────────────────
 build:firmware:
   stage: build
   image: python:3.12
   before_script:
     - pip install pyserial esptool -q
   script:
-    - echo "Firmware build step — add arduino-cli compile command here when source files are added"
-    - echo "Target: ESP32-S3"
+    - echo "Firmware build step — ESP32-S3 target"
+    - echo "Add arduino-cli compile command here once toolchain is wired up"
   allow_failure: true
   only:
     - main
