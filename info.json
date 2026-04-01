@@ -1,0 +1,10 @@
+{
+  "name": "Demuxer Init",
+  "id": "bluejay.demuxer.init",
+  "version": "0.1.0-beta",
+  "entry": "app.dmxr",
+  "install": "install.dmxr",
+  "manufacturer": "BlueJay Electronics LLC",
+  "make": "Demuxer",
+  "model": "Init"
+}
