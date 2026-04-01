@@ -1,0 +1,26 @@
+BINARYSTART () {
+
+json:/dmx/info.json;
+start:/dmx/app.dmxr;
+fallback:/assets/icon.png//assets/fallback.png;
+
+from app.dmxr fetch *TEXT .textStyle(demuxerUI)*
+
+&font.face(system; Roboto Mono.ttf)
+&&fallback(system; Arial.ttf)
+
+if(404[Assets.missing], exec//dmx/install.dmxi);
+
+Server.none:false; /dmx/routes.dmxs;
+
+};
+
+&namespace(bluejay.demuxer.init);
+
+#definenamespace {
+name:(bluejay)
+(c):(none)
+info:(demuxer init — gaming glove controller by bluejay electronics LLC)
+}
+
+BINARYEND ()
