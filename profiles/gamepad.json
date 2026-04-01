@@ -1,0 +1,49 @@
+{
+  "name": "gamepad",
+  "mode": "gamepad",
+  "flex_sensitivity": {
+    "thumb":  1.0,
+    "index":  1.1,
+    "middle": 1.1,
+    "ring":   0.9,
+    "pinky":  0.9
+  },
+  "flex_thresholds": {
+    "tap":   0.40,
+    "curl":  0.60,
+    "grip":  0.65,
+    "pinch": 0.50
+  },
+  "imu": {
+    "jerk_threshold_ms2": 2.2,
+    "twist_threshold_degs": 75.0,
+    "tilt_threshold_deg": 22.0,
+    "cooldown_ms": 350
+  },
+  "foil_mappings": {
+    "A": "button_a",
+    "B": "button_b",
+    "C": "button_x",
+    "D": "button_y",
+    "RECAL": "recalibrate"
+  },
+  "wheel": {
+    "deadzone": 0.04,
+    "lock_left_deg": -50.0,
+    "lock_right_deg": 50.0
+  },
+  "fingerwalk": {
+    "walk_threshold_tps": 1.5,
+    "run_threshold_tps": 3.5
+  },
+  "gestures": {
+    "jerk_forward":  "button_rt",
+    "jerk_backward": "button_lt",
+    "twist_left":    "button_lb",
+    "twist_right":   "button_rb",
+    "tilt_left":     "left_stick_left",
+    "tilt_right":    "left_stick_right",
+    "grip":          "button_x",
+    "pinch":         "button_a"
+  }
+}
