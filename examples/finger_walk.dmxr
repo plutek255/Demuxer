@@ -1,0 +1,234 @@
+// finger_walk.dmxr
+// finger-walk mode — pointer + middle fingers as character legs
+// bluejay electronics LLC
+
+#include <demuxer.h>
+
+#define APP_NAME "finger walk"
+
+float tapSpeed       = 0.0
+float walkThreshold  = 1.5
+float runThreshold   = 3.5
+int   lastTapFinger  = 0    // 1=index 2=middle
+int   stepCount      = 0
+str   moveState      = "idle"   // idle | walk | run
+float tapFlexThresh  = 0.55
+
+// ── pixel art sprites ─────────────────────────────────────────────────────────
+@sprite legs_idle {
+  size: 8x12
+  scale: 2
+  palette: #00aaff, #0066ff, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 . . . . 0 .
+    . 0 . . . . 0 .
+    . 0 . . . . 0 .
+    0 0 . . . . 0 0
+    . . . . . . . .
+}
+
+@sprite legs_step_l {
+  size: 8x12
+  scale: 2
+  palette: #00aaff, #00ff88, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 1 0 . . 0 0 .
+    1 1 0 . . 0 0 .
+    . 1 0 . . 0 0 .
+    . 1 . . . . 0 .
+    . 1 . . . . 0 .
+    1 1 . . . . 0 .
+    . . . . . . 0 0
+    . . . . . . . .
+}
+
+@sprite legs_step_r {
+  size: 8x12
+  scale: 2
+  palette: #00aaff, #00ff88, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 1 .
+    . 0 0 . . 0 1 1
+    . 0 0 . . 0 1 .
+    . 0 . . . . 1 .
+    . 0 . . . . 1 .
+    . 0 . . . . 1 1
+    0 0 . . . . . .
+    . . . . . . . .
+}
+
+@sprite icon_run {
+  size: 8x8
+  scale: 1
+  palette: #ffcc00, transparent
+  pixels:
+    . . 0 0 0 . . .
+    . 0 0 0 0 0 . .
+    0 . 0 0 0 . 0 .
+    . . . 0 . . . .
+    . 0 0 0 0 0 . .
+    . 0 . . . 0 . .
+    0 . . . . . 0 .
+    . . . . . . . .
+}
+
+// ── ui ────────────────────────────────────────────────────────────────────────
+<Screen id="main" width={240} height={135} bg="#080c10">
+
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a1808" border="#1a3510">
+    <Label text={APP_NAME} x={4} y={2} font="mono" size={11} color="#00ff88" />
+    <Label id="state_label" text="idle" x={180} y={2} font="mono" size={11} color="#4a6080" />
+  </Panel>
+
+  // animated leg sprites — swaps between frames on each tap
+  <Sprite id="legs_anim" src={legs_idle} x={96} y={20} />
+
+  // tap speed meter
+  <Panel id="speed_bg" x={20} y={96} w={200} h={10} bg="#0d1117" border="#1a2535">
+    <SVG id="speed_fill" x={0} y={0} w={200} h={10}>
+      <rect id="walk_zone" x="0"   y="0" width="86"  height="10" fill="#0066ff" opacity="0.15"/>
+      <rect id="run_zone"  x="86"  y="0" width="114" height="10" fill="#00ff88" opacity="0.15"/>
+      <rect id="speed_bar" x="0"   y="2" width="0"   height="6"  rx="2" fill="#00aaff"/>
+      <line x1="86" y1="0" x2="86" y2="10" stroke="#ffcc00" stroke-width="1" opacity="0.5"/>
+    </SVG>
+  </Panel>
+
+  <Label text="walk"  x={24}  y={108} font="mono" size={9} color="#4a6080" />
+  <Label text="run"   x={108} y={108} font="mono" size={9} color="#4a6080" />
+
+  // step counter
+  <Label id="step_count" text="steps: 0" x={88} y={76} font="mono" size={10} color="#4a6080" />
+
+  // finger tap indicators
+  <SVG id="tap_indicators" x={80} y={60}>
+    <circle id="tap_ix" cx="12" cy="8" r="7" fill="#1a2535"/>
+    <text x="7" y="12" font-size="8" fill="#4a6080" font-family="monospace">IX</text>
+    <circle id="tap_mx" cx="36" cy="8" r="7" fill="#1a2535"/>
+    <text x="31" y="12" font-size="8" fill="#4a6080" font-family="monospace">MX</text>
+  </SVG>
+
+  // buttons
+  <Button id="btn_thresh_up" x={4} y={82} w={40} h={16}
+    label="W+" color="#0066ff"
+    onPress={ py::
+      walkThreshold = min(walkThreshold + 0.1, runThreshold - 0.1)
+      print(f"walk thresh: {walkThreshold:.1f}")
+    }
+  />
+
+  <Button id="btn_thresh_dn" x={48} y={82} w={40} h={16}
+    label="W-" color="#333"
+    onPress={ py::
+      walkThreshold = max(walkThreshold - 0.1, 0.3)
+      print(f"walk thresh: {walkThreshold:.1f}")
+    }
+  />
+
+  <Button id="btn_exit" x={166} y={108} w={70} h={20}
+    label="EXIT" color="#ff4455"
+    onPress={ py::
+      device.send("CMD:FINGERWALK:OFF")
+      device.fingerWalkActive = False
+      moveState = "idle"
+    }
+  />
+
+</Screen>
+
+// ── lifecycle ─────────────────────────────────────────────────────────────────
+runtime start() {
+  device.send("CMD:FINGERWALK:ON")
+  device.fingerWalkActive = true
+  screen.render("main")
+  print("finger walk mode — tap index + middle to walk")
+  print("wrist twist = turn left/right")
+}
+
+runtime loop() {
+  sensor.readAll()
+
+  py::
+    import time
+
+    ix_bent = sensor.flex[1] >= tapFlexThresh
+    mx_bent = sensor.flex[2] >= tapFlexThresh
+
+    now_ms = int(time.time() * 1000)
+
+    # detect alternating tap (index then middle or vice versa)
+    tapping_finger = 0
+    if ix_bent and lastTapFinger != 1:
+      tapping_finger = 1
+    elif mx_bent and lastTapFinger != 2:
+      tapping_finger = 2
+
+    if tapping_finger != 0:
+      # compute tap speed from interval
+      # (lastTapMs stored as a hack in stepCount parity for now — real impl needs timer)
+      stepCount += 1
+      lastTapFinger = tapping_finger
+
+      # rough speed estimate — real impl would use timestamp diff
+      # placeholder: use flex value as proxy for speed
+      tapSpeed = (sensor.flex[1] + sensor.flex[2]) * 2.5
+
+    # decay speed if fingers still
+    if not ix_bent and not mx_bent:
+      tapSpeed = max(0.0, tapSpeed - 0.15)
+
+    # determine movement state
+    if tapSpeed <= 0.1:
+      new_state = "idle"
+    elif tapSpeed < walkThreshold:
+      new_state = "walk"
+    else:
+      new_state = "run"
+
+    if new_state != moveState:
+      moveState = new_state
+      device.send(f"CMD:FW_STATE:{moveState.upper()}")
+      print(f"finger walk: {moveState}")
+
+    # turning — wrist twist maps to turn
+    gz = sensor.imu["gz"]
+    if gz > 60.0:
+      device.send("CMD:FW_TURN:RIGHT")
+    elif gz < -60.0:
+      device.send("CMD:FW_TURN:LEFT")
+
+    # foil modifier + walk = sprint
+    if sensor.foil[3] and moveState == "run":
+      device.send("CMD:FW_SPRINT:ON")
+
+  screen.update()
+}
+
+runtime onFoil(int contact) {
+  py::
+    if contact == 4:  # RECAL
+      stepCount = 0
+      tapSpeed = 0.0
+      lastTapFinger = 0
+      moveState = "idle"
+      print("finger walk reset")
+}
+
+runtime onSleep() {
+  device.send("CMD:FINGERWALK:OFF")
+  device.fingerWalkActive = false
+}
