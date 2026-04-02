@@ -1,0 +1,230 @@
+// wheel_mode.dmxr
+// dedicated wheel mode app — grab any round object and steer
+// bluejay electronics LLC
+
+#include <demuxer.h>
+
+#define APP_NAME "wheel mode"
+
+float wheelAngle    = 0.0
+float deadzone      = 0.05
+bool  calibrated    = false
+str   calState      = "idle"   // idle | center | left | right | done
+
+// ── sprites ───────────────────────────────────────────────────────────────────
+@sprite wheel_icon {
+  size: 16x16
+  scale: 1
+  palette: #0066ff, #00aaff, #ffffff, transparent
+  pixels:
+    . . . 0 0 0 . . . . . 0 0 0 . .
+    . . 0 . . . 0 . . . 0 . . . 0 .
+    . 0 . . . . . 0 . 0 . . . . . 0
+    0 . . . 2 . . . 0 . . . 2 . . .
+    0 . . 2 2 2 . . 0 . . 2 2 2 . .
+    0 . . . 2 . . . 0 . . . 2 . . .
+    . 0 . . . . . 0 . 0 . . . . . 0
+    . . 0 . . . 0 . . . 0 . . . 0 .
+    . . . 0 0 0 . . . . . 0 0 0 . .
+    . . . . . . . . . . . . . . . . 
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+    . . . . . . . . . . . . . . . .
+}
+
+@sprite arrow_left {
+  size: 8x8
+  palette: #00aaff, transparent
+  pixels:
+    . . . 0 . . . .
+    . . 0 0 . . . .
+    . 0 0 0 0 0 0 .
+    0 0 0 0 0 0 0 0
+    . 0 0 0 0 0 0 .
+    . . 0 0 . . . .
+    . . . 0 . . . .
+    . . . . . . . .
+}
+
+@sprite arrow_right {
+  size: 8x8
+  palette: #00aaff, transparent
+  pixels:
+    . . . . 0 . . .
+    . . . . 0 0 . .
+    . 0 0 0 0 0 0 .
+    0 0 0 0 0 0 0 0
+    . 0 0 0 0 0 0 .
+    . . . . 0 0 . .
+    . . . . 0 . . .
+    . . . . . . . .
+}
+
+// ── steering arc (svg, updated dynamically) ───────────────────────────────────
+@svg steering_arc {
+  <defs>
+    <linearGradient id="arcgrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%"   stop-color="#0066ff" stop-opacity="0.3"/>
+      <stop offset="50%"  stop-color="#00aaff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#0066ff" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="10" width="200" height="4" rx="2" fill="#1a2535"/>
+  <rect id="arc_fill" x="100" y="10" width="0" height="4" rx="2" fill="url(#arcgrad)"/>
+  <circle id="arc_knob" cx="100" cy="12" r="7" fill="#00aaff" stroke="#080c10" stroke-width="2"/>
+</svg>
+
+// ── ui ────────────────────────────────────────────────────────────────────────
+<Screen id="main" width={240} height={135} bg="#080c10">
+
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a0820" border="#1a0a40">
+    <Sprite src={wheel_icon} x={2} y={0} />
+    <Label text={APP_NAME} x={22} y={2} font="mono" size={11} color="#8844ff" />
+    <Label text="IMU STEER" x={160} y={2} font="mono" size={10} color="#4a3080" />
+  </Panel>
+
+  // steering arc display
+  <SVG id="steer_arc" x={20} y={24} w={200} h={24}>
+    <rect x="0" y="10" width="200" height="4" rx="2" fill="#1a2535"/>
+    <rect id="arc_fill" x="100" y="10" width="0" height="4" rx="2" fill="#00aaff" opacity="0.7"/>
+    <circle id="arc_knob" cx="100" cy="12" r="7" fill="#00aaff" stroke="#080c10" stroke-width="2"/>
+  </SVG>
+
+  // angle readout
+  <Label id="angle_val" text="0.0°" x={104} y={54} font="mono" size={12} color="#00aaff" />
+
+  // direction arrows (shown when steering)
+  <Sprite id="arrow_l" src={arrow_left}  x={30} y={50} visible={false} />
+  <Sprite id="arrow_r" src={arrow_right} x={196} y={50} visible={false} />
+
+  // reliability tier badge
+  <Label id="tier_label" text="tier: —" x={4} y={74} font="mono" size={10} color="#4a3080" />
+
+  // calibration prompt
+  <Label id="cal_prompt" text="press CAL to set center" x={4} y={88} font="mono" size={10} color="#4a6080" />
+
+  // buttons
+  <Button id="btn_cal" x={4} y={108} w={55} h={20}
+    label="CAL" color="#8844ff"
+    onPress={ py::
+      import json
+      if calState == "idle":
+        calState = "center"
+        device.send("CMD:WHEEL_CAL:CENTER")
+        print("wheel cal: hold arm straight forward")
+      elif calState == "center":
+        calState = "left"
+        device.send("CMD:WHEEL_CAL:LEFT")
+        print("wheel cal: turn to full left")
+      elif calState == "left":
+        calState = "right"
+        device.send("CMD:WHEEL_CAL:RIGHT")
+        print("wheel cal: turn to full right")
+      elif calState == "right":
+        calState = "done"
+        calibrated = True
+        device.send("CMD:WHEEL_CAL:DONE")
+        print("wheel calibration complete")
+    }
+  />
+
+  <Button id="btn_dz_up" x={64} y={108} w={40} h={20}
+    label="DZ+" color="#333"
+    onPress={ py::
+      deadzone = min(deadzone + 0.02, 0.3)
+      device.send(f"CMD:WHEEL_DZ:{deadzone:.2f}")
+      print(f"deadzone: {deadzone:.2f}")
+    }
+  />
+
+  <Button id="btn_dz_dn" x={108} y={108} w={40} h={20}
+    label="DZ-" color="#333"
+    onPress={ py::
+      deadzone = max(deadzone - 0.02, 0.0)
+      device.send(f"CMD:WHEEL_DZ:{deadzone:.2f}")
+      print(f"deadzone: {deadzone:.2f}")
+    }
+  />
+
+  <Button id="btn_exit" x={166} y={108} w={70} h={20}
+    label="EXIT" color="#ff4455"
+    onPress={ py::
+      device.send("CMD:WHEEL:OFF")
+      device.wheelActive = False
+      screen.render("exit_confirm")
+    }
+  />
+
+</Screen>
+
+<Screen id="exit_confirm" width={240} height={135} bg="#080c10">
+  <Label text="wheel mode off" x={64} y={56} font="mono" size={13} color="#ff4455" />
+  <Label text="returning to main app" x={44} y={74} font="mono" size={10} color="#4a6080" />
+</Screen>
+
+// ── lifecycle ─────────────────────────────────────────────────────────────────
+runtime start() {
+  device.send("CMD:WHEEL:ON")
+  device.wheelActive = true
+  screen.render("main")
+  print("wheel mode active — grab your wheel object")
+}
+
+runtime loop() {
+  sensor.readAll()
+
+  py::
+    ax = sensor.imu["ax"]
+    ay = sensor.imu["ay"]
+    gz = sensor.imu["gz"]
+
+    import math
+
+    # tilt angle from accel
+    tilt_x = math.degrees(math.atan2(ay, sensor.imu["az"]))
+    tilt_y = math.degrees(math.atan2(ax, sensor.imu["az"]))
+
+    # combine axes into wheel angle (-1.0 to 1.0)
+    if calibrated:
+      raw_angle = tilt_x / 45.0
+      vert_correction = (tilt_y / 90.0) * 0.3 * (1 if raw_angle >= 0 else -1)
+      raw_angle += vert_correction
+    else:
+      raw_angle = tilt_x / 45.0
+
+    # deadzone
+    if abs(raw_angle) < deadzone:
+      raw_angle = 0.0
+
+    # clamp
+    wheelAngle = max(-1.0, min(1.0, raw_angle))
+
+    # send to arduino
+    device.send(f"CMD:WHEEL_ANGLE:{wheelAngle:.3f}")
+
+    # update UI arrow visibility
+    # (screen.update() will re-evaluate visible props)
+
+    # reliability tier detection (based on gz stability)
+    gz_abs = abs(gz)
+    if gz_abs < 5.0:
+      tier = "fixed wheel"
+    elif gz_abs < 20.0:
+      tier = "freeform"
+    else:
+      tier = "air (noisy)"
+
+  screen.update()
+}
+
+runtime onFoil(int contact) {
+  # foil RECAL = restart calibration
+  py::
+    if contact == 4:
+      calState = "idle"
+      calibrated = False
+      print("wheel cal reset")
+}
