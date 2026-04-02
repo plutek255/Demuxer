@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DMXR Interpreter</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+:root {
+  --bg:       #060810;
+  --bg2:      #0a0e16;
+  --panel:    #0d1320;
+  --border:   #151e30;
+  --border2:  #1e2d46;
+  --accent:   #0af;
+  --accent2:  #0066ff;
+  --green:    #00ff88;
+  --yellow:   #ffcc00;
+  --red:      #ff4455;
+  --purple:   #8844ff;
+  --orange:   #ff8844;
+  --text:     #b8cce0;
+  --dim:      #3a5070;
+  --dim2:     #243448;
+  --mono:     'Share Tech Mono', monospace;
+  --head:     'Orbitron', sans-serif;
+  --code:     'Space Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── scanline overlay ──────────────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* ── dot grid bg ─────────────────────────────────────────────────────────── */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(rgba(0,170,255,0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 0 0 0;
+}
+
+/* ── header ──────────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border2);
+  background: var(--bg2);
+  overflow: hidden;
+}
+
+.hdr-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  border-right: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+
+.logo-glyph {
+  width: 32px; height: 32px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.logo-glyph svg { width: 100%; height: 100%; }
+
+.hdr-title {
+  font-family: var(--head);
+  font-weight: 900;
+  font-size: 14px;
+  letter-spacing: 3px;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.hdr-title span { color: var(--accent); }
+
+.hdr-tabs {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hdr-tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 18px;
+  height: 46px;
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  white-space: nowrap;
+  transition: all 0.12s;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.tab:hover { color: var(--text); background: rgba(0,170,255,0.04); }
+
+.tab.active {
+  color: var(--accent);
+  background: rgba(0,170,255,0.06);
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.tab-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--dim);
+  flex-shrink: 0;
+}
+
+.tab.active .tab-dot { background: var(--accent); box-shadow: 0 0 4px var(--accent); }
+.tab[data-type="dmxr"] .tab-dot   { background: var(--accent); }
+.tab[data-type="dmxi"] .tab-dot   { background: var(--yellow); }
+.tab[data-type="spec"] .tab-dot   { background: var(--purple); }
+
+.hdr-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border-left: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 30px; height: 30px;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+
+.icon-btn:hover { color: var(--text); border-color: var(--border2); background: var(--panel); }
+
+/* ── main layout ─────────────────────────────────────────────────────────── */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  height: calc(100vh - 46px);
+  overflow: hidden;
+}
+
+/* ── editor pane ─────────────────────────────────────────────────────────── */
+.editor-pane {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  border-right: 1px solid var(--border2);
+  overflow: hidden;
+}
+
+.editor-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.editor-lines {
+  position: absolute;
+  top: 0; left: 0;
+  width: 40px; bottom: 0;
+  padding: 14px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+  pointer-events: none;
+  overflow: hidden;
+  user-select: none;
+}
+
+.ln {
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--dim2);
+  min-height: 20px;
+  flex-shrink: 0;
+}
+
+#editor {
+  position: absolute;
+  top: 0; left: 40px; right: 0; bottom: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--code);
+  font-size: 12px;
+  line-height: 20px;
+  color: transparent;
+  caret-color: var(--accent);
+  padding: 14px 14px 14px 10px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+  z-index: 2;
+  tab-size: 2;
+  white-space: pre;
+}
+
+/* highlighted overlay */
+#highlight-overlay {
+  position: absolute;
+  top: 0; left: 40px; right: 0; bottom: 0;
+  font-family: var(--code);
+  font-size: 12px;
+  line-height: 20px;
+  padding: 14px 14px 14px 10px;
+  pointer-events: none;
+  white-space: pre;
+  overflow: hidden;
+  z-index: 1;
+  word-break: break-all;
+}
+
+/* editor toolbar */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.run-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  background: var(--accent2);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.run-btn:hover { background: var(--accent); }
+.run-btn:active { transform: scale(0.97); }
+
+.run-btn .icon { font-size: 10px; }
+
+.step-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.step-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.tb-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+
+.tb-info {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--dim);
+  margin-left: auto;
+}
+
+.tb-info span { color: var(--text); }
+
+/* ── right pane ──────────────────────────────────────────────────────────── */
+.right-pane {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+
+/* pane header */
+.pane-hdr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.pane-hdr-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+}
+
+/* output tabs */
+.out-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.out-tab {
+  flex: 1;
+  padding: 6px 0;
+  text-align: center;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--dim);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+  transition: all 0.12s;
+}
+
+.out-tab:last-child { border-right: none; }
+.out-tab:hover { color: var(--text); background: rgba(255,255,255,0.02); }
+.out-tab.active { color: var(--accent); background: rgba(0,170,255,0.05); }
+
+/* output content */
+.out-content {
+  overflow: hidden;
+  position: relative;
+}
+
+.out-panel {
+  display: none;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+
+.out-panel.active { display: block; }
+
+/* trace */
+#trace {
+  padding: 10px 0;
+}
+
+.trace-row {
+  display: grid;
+  grid-template-columns: 28px 18px 1fr;
+  gap: 0;
+  padding: 1px 12px 1px 8px;
+  min-height: 22px;
+  align-items: flex-start;
+  opacity: 0;
+  animation: fadeIn 0.15s forwards;
+}
+
+@keyframes fadeIn { to { opacity: 1; } }
+
+.t-num { font-size: 10px; color: var(--dim2); text-align: right; padding-top: 2px; }
+.t-ico { font-size: 11px; padding: 2px 4px 0; }
+.t-msg { font-family: var(--code); font-size: 11px; line-height: 1.6; word-break: break-all; }
+
+.t-ok     { color: var(--green); }
+.t-warn   { color: var(--yellow); }
+.t-err    { color: var(--red); }
+.t-info   { color: var(--accent); }
+.t-dim    { color: var(--dim); }
+.t-py     { color: #c084fc; }
+.t-jsx    { color: #60a5fa; }
+.t-sprite { color: var(--orange); }
+.t-svg    { color: #34d399; }
+.t-cpp    { color: #f87171; }
+
+/* AST panel */
+#ast-panel {
+  padding: 10px 12px;
+  font-family: var(--code);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.ast-node {
+  cursor: pointer;
+  padding: 1px 4px;
+  border-radius: 3px;
+  transition: background 0.1s;
+}
+
+.ast-node:hover { background: rgba(255,255,255,0.04); }
+
+.ast-indent { display: inline-block; width: 16px; }
+.ast-kind   { color: var(--accent); font-weight: bold; }
+.ast-attr   { color: var(--dim); }
+.ast-val    { color: var(--green); }
+.ast-brace  { color: var(--dim2); }
+
+/* preview panel */
+#preview-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  gap: 12px;
+}
+
+/* simulated 240x135 glove screen */
+.glove-screen {
+  width: 240px;
+  height: 135px;
+  background: #080c10;
+  border: 2px solid var(--border2);
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(0,170,255,0.15), 0 0 40px rgba(0,0,0,0.8);
+  flex-shrink: 0;
+}
+
+.glove-screen::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(0,0,0,0.06) 3px, rgba(0,0,0,0.06) 4px
+  );
+  pointer-events: none;
+  z-index: 10;
+}
+
+.gs-label {
+  font-size: 10px;
+  color: var(--dim);
+  letter-spacing: 1px;
+}
+
+/* state panel */
+#state-panel {
+  padding: 10px 12px;
+}
+
+.state-section {
+  margin-bottom: 12px;
+}
+
+.state-section-title {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.state-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 11px;
+}
+
+.state-key { color: var(--dim); }
+.state-val { color: var(--green); font-family: var(--code); }
+.state-val.bool-true  { color: var(--green); }
+.state-val.bool-false { color: var(--dim); }
+.state-val.str  { color: var(--yellow); }
+.state-val.num  { color: var(--accent); }
+
+/* progress */
+.progress-strip {
+  height: 2px;
+  background: var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent2), var(--accent));
+  transition: width 0.25s ease;
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* status bar */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--dim);
+  background: var(--bg2);
+}
+
+.sb-item { display: flex; align-items: center; gap: 5px; }
+.sb-val  { color: var(--text); }
+.sb-val.ok     { color: var(--green); }
+.sb-val.warn   { color: var(--yellow); }
+.sb-val.error  { color: var(--red); }
+.sb-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--dim);
+}
+.sb-dot.ok    { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.sb-dot.error { background: var(--red); }
+.sb-dot.warn  { background: var(--yellow); }
+
+/* pixel art canvas */
+.sprite-grid {
+  image-rendering: pixelated;
+}
+
+/* ── syntax highlight colors ─────────────────────────────────────────────── */
+.hl-kw     { color: #f87171; }   /* cpp keywords, runtime */
+.hl-type   { color: #fb923c; }   /* int float bool str */
+.hl-tag    { color: #60a5fa; }   /* <Button> <Panel> */
+.hl-attr   { color: #c084fc; }   /* TSX attributes */
+.hl-str    { color: #86efac; }   /* "strings" */
+.hl-num    { color: var(--accent); }  /* numbers */
+.hl-op     { color: var(--yellow); }  /* = + - { } */
+.hl-cmt    { color: var(--dim); font-style: italic; }
+.hl-define { color: #f97316; }   /* #define #include */
+.hl-py     { color: #c084fc; }   /* py:: blocks */
+.hl-md     { color: #6ee7b7; }   /* md:: blocks */
+.hl-at     { color: var(--orange); } /* @sprite @svg */
+.hl-builtin{ color: var(--accent2); } /* sensor. haptic. screen. */
+.hl-block  { color: var(--yellow); } /* runtime start loop */
+.hl-plain  { color: var(--text); }
+
+/* samples dropdown */
+.samples-wrap {
+  position: relative;
+}
+
+.samples-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.samples-btn:hover { color: var(--text); border-color: var(--border2); }
+
+.samples-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  overflow: hidden;
+  z-index: 100;
+  box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
+}
+
+.samples-menu.open { display: block; }
+
+.sample-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.sample-item:hover { background: rgba(0,170,255,0.06); }
+
+.sample-item .si-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.sample-item .si-type {
+  font-size: 10px;
+  color: var(--dim);
+  margin-left: auto;
+}
+
+/* clear btn */
+.clear-btn {
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s;
+  margin-left: auto;
+}
+
+.clear-btn:hover { color: var(--red); border-color: var(--red); }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- header -->
+  <header>
+    <div class="hdr-logo">
+      <div class="logo-glyph">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="16,2 30,10 30,22 16,30 2,22 2,10" stroke="#0af" stroke-width="1.5" fill="rgba(0,170,255,0.06)"/>
+          <polygon points="16,8 24,13 24,21 16,26 8,21 8,13" stroke="#0066ff" stroke-width="1" fill="rgba(0,102,255,0.1)"/>
+          <circle cx="16" cy="16" r="3" fill="#0af"/>
+        </svg>
+      </div>
+      <div class="hdr-title"><span>DMX</span>R</div>
+    </div>
+
+    <div class="hdr-tabs" id="fileTabs"></div>
+
+    <div class="hdr-actions">
+      <button class="icon-btn" onclick="addNewTab()" title="new file">+</button>
+    </div>
+  </header>
+
+  <!-- workspace -->
+  <div class="workspace">
+
+    <!-- editor -->
+    <div class="editor-pane">
+      <div class="editor-wrap">
+        <div class="editor-lines" id="lineNumbers"></div>
+        <div id="highlight-overlay"></div>
+        <textarea id="editor" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+
+      <div class="editor-toolbar">
+        <button class="run-btn" onclick="runFull()">
+          <span class="icon">▶</span> RUN
+        </button>
+        <button class="step-btn" onclick="stepNext()">⏭ STEP</button>
+
+        <div class="tb-sep"></div>
+
+        <div class="samples-wrap">
+          <button class="samples-btn" onclick="toggleSamples()">⊞ SAMPLES ▾</button>
+          <div class="samples-menu" id="samplesMenu"></div>
+        </div>
+
+        <div class="tb-sep"></div>
+
+        <div class="tb-info">
+          ln <span id="tbLine">1</span> · col <span id="tbCol">1</span> · <span id="tbType">—</span>
+        </div>
+
+        <button class="clear-btn" onclick="clearAll()">✕ clear</button>
+      </div>
+    </div>
+
+    <!-- right pane -->
+    <div class="right-pane">
+
+      <div class="out-tabs">
+        <div class="out-tab active" data-panel="trace" onclick="switchPanel('trace')">TRACE</div>
+        <div class="out-tab" data-panel="ast" onclick="switchPanel('ast')">AST</div>
+        <div class="out-tab" data-panel="preview" onclick="switchPanel('preview')">PREVIEW</div>
+        <div class="out-tab" data-panel="state" onclick="switchPanel('state')">STATE</div>
+      </div>
+
+      <div class="progress-strip"><div class="progress-fill" id="progressFill"></div></div>
+
+      <div class="out-content">
+        <div class="out-panel active" id="trace-panel">
+          <div id="trace"><div style="color:var(--dim);font-size:11px;padding:14px">// run a .dmxr file to see trace output</div></div>
+        </div>
+
+        <div class="out-panel" id="ast-panel">
+          <div style="color:var(--dim);font-size:11px;padding:14px">// AST will appear after parsing</div>
+        </div>
+
+        <div class="out-panel" id="preview-panel">
+          <div class="gs-label">glove screen (240×135)</div>
+          <div class="glove-screen" id="gloveScreen">
+            <canvas id="gloveCanvas" width="240" height="135" style="width:240px;height:135px;image-rendering:pixelated;display:block"></canvas>
+          </div>
+          <div class="gs-label" id="preview-note">run a .dmxr file to render the screen</div>
+        </div>
+
+        <div class="out-panel" id="state-panel">
+          <div id="state-content" style="color:var(--dim);font-size:11px;padding:14px">// parsed state will appear here</div>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div class="sb-item"><div class="sb-dot" id="sbDot"></div> <span class="sb-val" id="sbStatus">idle</span></div>
+        <div class="sb-item">blocks: <span class="sb-val" id="sbBlocks">—</span></div>
+        <div class="sb-item">components: <span class="sb-val" id="sbComponents">—</span></div>
+        <div class="sb-item">sprites: <span class="sb-val" id="sbSprites">—</span></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SAMPLES ────────────────────────────────────────────────────────────────────
+const SAMPLES = {
+  'hello_glove.dmxr': {
+    type: 'dmxr', color: '#0af',
+    content: `// hello_glove.dmxr — basic demuxer app
+#include <demuxer.h>
+#include "hello.dmxi"
+
+#define APP_NAME "hello glove"
+#define VERSION  "1.0"
+
+int   tickCount     = 0
+bool  connected     = false
+str   lastGesture   = "none"
+float gripThreshold = 0.65
+
+@sprite icon_hand {
+  size: 8x8
+  scale: 2
+  palette: #00aaff, #ffffff, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    0 0 0 0 0 0 0 0
+    0 1 0 0 0 0 1 0
+    0 0 0 0 0 0 0 0
+    . 0 0 0 0 0 0 .
+    . . 0 0 0 0 . .
+    . . . 0 0 . . .
+    . . . . . . . .
+}
+
+@svg badge_active {
+  <circle cx="8" cy="8" r="6" fill="#0af" opacity="0.8"/>
+  <circle cx="8" cy="8" r="3" fill="#fff"/>
+}
+
+<Screen id="main" width={240} height={135} bg="#080c10">
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a1628" border="#1a2535">
+    <Sprite src={icon_hand} x={3} y={0} />
+    <Label text={APP_NAME} x={22} y={2} font="mono" size={11} color="#00aaff" />
+    <BatteryBar x={170} y={5} w={24} h={6} />
+  </Panel>
+  <FlexBar id="flex_display" x={4} y={22} fingers={5} height={34} />
+  <FoilDots id="foil_row" x={8} y={62} count={5} />
+  <GestureLabel id="gesture_out" x={60} y={60} />
+  <Button id="btn_recal" x={4} y={82} w={70} h={20}
+    label="RECAL" color="#ffcc00"
+    onPress={ device.send("CMD:CALIBRATE") }
+  />
+  <Button id="btn_lock" x={166} y={82} w={70} h={20}
+    label="LOCK" color="#ff4455"
+    onPress={ screen.lock() }
+    onHold={ screen.unlock() }
+  />
+  <Terminal id="log_out" x={4} y={108} w={232} h={24}
+    source="hello.dmxi::terminal"
+    scrollable={true} font="mono" size={9} color="#4a6080"
+  />
+</Screen>
+
+runtime start() {
+  screen.render("main")
+  print("hello glove — booting")
+  loadProfile("default")
+  py::
+    connected = sensor.connected
+    print(f"app ready: {APP_NAME} v{VERSION}")
+}
+
+runtime loop() {
+  tickCount = tickCount + 1
+  sensor.readAll()
+  py::
+    if sensor.gesture != "none":
+      lastGesture = sensor.gesture
+    if sensor.foil[2]:
+      device.send("CMD:PTT:ON")
+  screen.update()
+}
+
+runtime onGesture(gesture g) {
+  py::
+    if g.type == "JERK_FORWARD":
+      device.send("CMD:MELEE")
+      haptic.pulse(1, 200, 80)
+}`
+  },
+  'wheel_mode.dmxr': {
+    type: 'dmxr', color: '#8844ff',
+    content: `// wheel_mode.dmxr — grab any round object and steer
+#include <demuxer.h>
+
+#define APP_NAME "wheel mode"
+
+float wheelAngle = 0.0
+float deadzone   = 0.05
+bool  calibrated = false
+str   calState   = "idle"
+
+@sprite wheel_icon {
+  size: 8x8
+  scale: 2
+  palette: #8844ff, #ffffff, transparent
+  pixels:
+    . . 0 0 0 0 . .
+    . 0 . . . . 0 .
+    0 . . 1 1 . . 0
+    0 . 1 . . 1 . 0
+    0 . 1 . . 1 . 0
+    0 . . 1 1 . . 0
+    . 0 . . . . 0 .
+    . . 0 0 0 0 . .
+}
+
+<Screen id="main" width={240} height={135} bg="#080c10">
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a0820">
+    <Sprite src={wheel_icon} x={3} y={0} />
+    <Label text={APP_NAME} x={22} y={2} font="mono" size={11} color="#8844ff" />
+  </Panel>
+  <SVG id="steer_arc" x={20} y={28} w={200} h={20}>
+    <rect x="0" y="8" width="200" height="4" rx="2" fill="#1a2535"/>
+    <rect id="arc_fill" x="100" y="8" width="0" height="4" rx="2" fill="#8844ff" opacity="0.8"/>
+    <circle id="arc_knob" cx="100" cy="10" r="8" fill="#8844ff" stroke="#080c10" stroke-width="2"/>
+  </SVG>
+  <Label id="angle_val" text="angle: 0.000" x={80} y={56} font="mono" size={11} color="#8844ff" />
+  <Button id="btn_cal" x={4} y={108} w={55} h={20}
+    label="CAL" color="#8844ff"
+    onPress={ py::
+      if calState == "idle":
+        calState = "center"
+        device.send("CMD:WHEEL_CAL:CENTER")
+        print("hold arm straight forward")
+    }
+  />
+  <Button id="btn_exit" x={166} y={108} w={70} h={20}
+    label="EXIT" color="#ff4455"
+    onPress={ device.send("CMD:WHEEL:OFF") }
+  />
+</Screen>
+
+runtime start() {
+  device.send("CMD:WHEEL:ON")
+  screen.render("main")
+  print("wheel mode — grab your object")
+}
+
+runtime loop() {
+  sensor.readAll()
+  py::
+    import math
+    tilt = math.degrees(math.atan2(sensor.imu["ay"], sensor.imu["az"]))
+    wheelAngle = max(-1.0, min(1.0, tilt / 45.0))
+    if abs(wheelAngle) < deadzone:
+      wheelAngle = 0.0
+    device.send(f"CMD:WHEEL_ANGLE:{wheelAngle:.3f}")
+  screen.update()
+}`
+  },
+  'finger_walk.dmxr': {
+    type: 'dmxr', color: '#00ff88',
+    content: `// finger_walk.dmxr — index + middle as character legs
+#include <demuxer.h>
+
+#define APP_NAME "finger walk"
+
+float tapSpeed      = 0.0
+float walkThreshold = 1.5
+float runThreshold  = 3.5
+int   lastTapFinger = 0
+int   stepCount     = 0
+str   moveState     = "idle"
+
+@sprite legs_idle {
+  size: 8x10
+  scale: 2
+  palette: #00aaff, #00ff88, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 0 . . 0 0 .
+    . 0 . . . . 0 .
+    . 0 . . . . 0 .
+    0 0 . . . . 0 0
+    . . . . . . . .
+    . . . . . . . .
+}
+
+<Screen id="main" width={240} height={135} bg="#080c10">
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a1808">
+    <Label text={APP_NAME} x={4} y={2} font="mono" size={11} color="#00ff88" />
+    <Label id="state_lbl" text="idle" x={180} y={2} font="mono" size={11} color="#4a6080" />
+  </Panel>
+  <Sprite id="legs_anim" src={legs_idle} x={96} y={22} />
+  <Panel id="speed_bg" x={20} y={96} w={200} h={10} bg="#0d1117" border="#1a2535">
+    <SVG id="speed_fill" x={0} y={0} w={200} h={10}>
+      <rect x="0"  y="2" width="80"  height="6" rx="2" fill="#0066ff" opacity="0.2"/>
+      <rect x="80" y="2" width="120" height="6" rx="2" fill="#00ff88" opacity="0.2"/>
+      <rect id="bar" x="0" y="2" width="0" height="6" rx="2" fill="#00aaff"/>
+      <line x1="80" y1="0" x2="80" y2="10" stroke="#ffcc00" stroke-width="1" opacity="0.4"/>
+    </SVG>
+  </Panel>
+  <Label text="walk" x={24} y={108} font="mono" size={9} color="#4a6080" />
+  <Label text="run"  x={106} y={108} font="mono" size={9} color="#4a6080" />
+  <Label id="steps" text="steps: 0" x={88} y={78} font="mono" size={10} color="#4a6080" />
+  <Button id="btn_exit" x={166} y={108} w={70} h={20}
+    label="EXIT" color="#ff4455"
+    onPress={ py::
+      device.send("CMD:FINGERWALK:OFF")
+      device.fingerWalkActive = False
+    }
+  />
+</Screen>
+
+runtime start() {
+  device.send("CMD:FINGERWALK:ON")
+  device.fingerWalkActive = true
+  screen.render("main")
+  print("finger walk — tap index + middle to move")
+}
+
+runtime loop() {
+  sensor.readAll()
+  py::
+    ix = sensor.flex[1] >= 0.55
+    mx = sensor.flex[2] >= 0.55
+    tap = 0
+    if ix and lastTapFinger != 1: tap = 1
+    elif mx and lastTapFinger != 2: tap = 2
+    if tap:
+      stepCount += 1
+      lastTapFinger = tap
+      tapSpeed = (sensor.flex[1] + sensor.flex[2]) * 2.5
+    if not ix and not mx:
+      tapSpeed = max(0.0, tapSpeed - 0.15)
+    if tapSpeed < 0.1: moveState = "idle"
+    elif tapSpeed < walkThreshold: moveState = "walk"
+    else: moveState = "run"
+    device.send(f"CMD:FW_STATE:{moveState.upper()}")
+  screen.update()
+}`
+  },
+  'hello.dmxi': {
+    type: 'dmxi', color: '#ffcc00',
+    content: `{
+  "name": "hello-bundle",
+  "version": "1.0",
+  "entries": {
+    "terminal": {
+      "type": "html",
+      "content": "<div style='font-family:monospace;font-size:10px;color:#4a6080;line-height:1.6;padding:2px 4px'><span style='color:#0af'>demuxer init</span> — terminal ready<br><span style='color:#00ff88'>✓</span> flex sensors: OK<br><span style='color:#00ff88'>✓</span> IMU: OK<br><span style='color:#ffcc00'>?</span> touchscreen: initializing...</div>"
+    },
+    "docs": {
+      "type": "md",
+      "content": "# hello glove\\n\\nbasic demuxer app.\\n\\n## controls\\n\\n- **RECAL** — recalibrate\\n- **LOCK** — lock screen"
+    },
+    "config": {
+      "type": "json",
+      "content": { "grip_threshold": 0.65, "haptic_confirm_hz": 150 }
+    }
+  }
+}`
+  }
+};
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let activeFile = 'hello_glove.dmxr';
+let tabs = ['hello_glove.dmxr', 'wheel_mode.dmxr', 'finger_walk.dmxr', 'hello.dmxi'];
+let steps = [], stepIdx = 0;
+let traceCount = 0;
+let parsed = null;
+let runtimeState = {
+  defines: {}, globals: {}, screens: [], sprites: [], svgs: [],
+  runtimes: [], components: [], py_blocks: [], includes: []
+};
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  buildTabs();
+  buildSamplesMenu();
+  loadTab(activeFile);
+  setupEditor();
+}
+
+function buildTabs() {
+  const el = document.getElementById('fileTabs');
+  el.innerHTML = '';
+  tabs.forEach(name => {
+    const t = document.createElement('div');
+    const info = SAMPLES[name] || { type: name.split('.').pop(), color: '#4a6080' };
+    t.className = 'tab' + (name === activeFile ? ' active' : '');
+    t.dataset.type = info.type;
+    t.innerHTML = `<div class="tab-dot"></div>${name}`;
+    t.onclick = () => loadTab(name);
+    el.appendChild(t);
+  });
+}
+
+function buildSamplesMenu() {
+  const menu = document.getElementById('samplesMenu');
+  menu.innerHTML = '';
+  Object.entries(SAMPLES).forEach(([name, info]) => {
+    const item = document.createElement('div');
+    item.className = 'sample-item';
+    item.innerHTML = `<div class="si-dot" style="background:${info.color}"></div>${name}<span class="si-type">.${info.type}</span>`;
+    item.onclick = () => {
+      loadTab(name);
+      toggleSamples();
+    };
+    menu.appendChild(item);
+  });
+}
+
+function toggleSamples() {
+  document.getElementById('samplesMenu').classList.toggle('open');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.samples-wrap')) {
+    document.getElementById('samplesMenu').classList.remove('open');
+  }
+});
+
+function loadTab(name) {
+  activeFile = name;
+  const content = SAMPLES[name]?.content || '';
+  document.getElementById('editor').value = content;
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.trim() === name);
+  });
+  updateHighlight();
+  updateLineNumbers();
+  updateTbInfo();
+}
+
+function addNewTab() {
+  const name = `untitled_${Date.now()}.dmxr`;
+  SAMPLES[name] = { type: 'dmxr', color: '#4a6080', content: `// ${name}\n#include <demuxer.h>\n\nruntime start() {\n  print("hello")\n}\n\nruntime loop() {\n  sensor.readAll()\n  screen.update()\n}\n` };
+  tabs.push(name);
+  buildTabs();
+  loadTab(name);
+}
+
+// ── EDITOR ────────────────────────────────────────────────────────────────────
+function setupEditor() {
+  const ed = document.getElementById('editor');
+  ed.addEventListener('input', () => {
+    updateHighlight();
+    updateLineNumbers();
+    const name = activeFile;
+    if (SAMPLES[name]) SAMPLES[name].content = ed.value;
+  });
+  ed.addEventListener('keydown', e => {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = ed.selectionStart, end = ed.selectionEnd;
+      ed.value = ed.value.substring(0, s) + '  ' + ed.value.substring(end);
+      ed.selectionStart = ed.selectionEnd = s + 2;
+      updateHighlight();
+    }
+  });
+  ed.addEventListener('scroll', () => {
+    const ov = document.getElementById('highlight-overlay');
+    const ln = document.getElementById('lineNumbers');
+    ov.style.transform = `translateY(-${ed.scrollTop}px)`;
+    ln.style.transform = `translateY(-${ed.scrollTop}px)`;
+  });
+  ed.addEventListener('click', updateTbInfo);
+  ed.addEventListener('keyup', updateTbInfo);
+  updateHighlight();
+  updateLineNumbers();
+}
+
+function updateTbInfo() {
+  const ed = document.getElementById('editor');
+  const val = ed.value;
+  const pos = ed.selectionStart;
+  const lines = val.substring(0, pos).split('\n');
+  const line = lines.length;
+  const col  = lines[lines.length - 1].length + 1;
+  document.getElementById('tbLine').textContent = line;
+  document.getElementById('tbCol').textContent  = col;
+
+  const ext = activeFile.split('.').pop();
+  document.getElementById('tbType').textContent = '.' + ext;
+}
+
+function updateLineNumbers() {
+  const ed = document.getElementById('editor');
+  const lines = ed.value.split('\n');
+  const ln = document.getElementById('lineNumbers');
+  ln.innerHTML = lines.map((_, i) => `<div class="ln">${i+1}</div>`).join('');
+}
+
+// ── SYNTAX HIGHLIGHTING ───────────────────────────────────────────────────────
+function updateHighlight() {
+  const ed  = document.getElementById('editor');
+  const ov  = document.getElementById('highlight-overlay');
+  const src = ed.value;
+  const ext = activeFile.split('.').pop();
+  ov.innerHTML = ext === 'dmxi' ? hlJson(src) : hlDmxr(src);
+}
+
+function esc(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlDmxr(src) {
+  const lines = src.split('\n');
+  return lines.map(line => hlLine(line)).join('\n');
+}
+
+function hlLine(line) {
+  // comments
+  if (/^\s*\/\//.test(line)) return `<span class="hl-cmt">${esc(line)}</span>`;
+  if (/^\s*#/.test(line) && !line.trim().startsWith('#include') && !line.trim().startsWith('#define'))
+    return `<span class="hl-cmt">${esc(line)}</span>`;
+
+  // #include #define
+  if (/^\s*#(include|define)/.test(line))
+    return line.replace(/(#(?:include|define))(\s+)(.*)/, (_, kw, sp, rest) =>
+      `<span class="hl-define">${esc(kw)}</span>${sp}${esc(rest)}`);
+
+  // @sprite @svg
+  if (/^\s*@(sprite|svg)/.test(line))
+    return line.replace(/(@(?:sprite|svg))(\s+)(\S+)/, (_, at, sp, name) =>
+      `<span class="hl-at">${esc(at)}</span>${sp}<span class="hl-val">${esc(name)}</span>`);
+
+  // runtime blocks
+  if (/^\s*runtime\s+/.test(line))
+    return line.replace(/(runtime)(\s+)(\w+)/, (_, kw, sp, name) =>
+      `<span class="hl-block">${esc(kw)}</span>${sp}<span class="hl-kw">${esc(name)}</span>`);
+
+  // py:: md:: html::
+  if (/\bpy::/.test(line))   return `<span class="hl-py">${esc(line)}</span>`;
+  if (/\bmd::/.test(line))   return `<span class="hl-md">${esc(line)}</span>`;
+  if (/\bhtml::/.test(line)) return `<span class="hl-md">${esc(line)}</span>`;
+
+  // tsx opening tag
+  if (/^\s*<\/?[A-Z]/.test(line)) {
+    return line
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/(&lt;\/?[A-Za-z]+)/g, s => `<span class="hl-tag">${s}</span>`)
+      .replace(/(\w+)(?==\{|\=")/g, s => `<span class="hl-attr">${s}</span>`)
+      .replace(/"([^"]*)"/g, (_, v) => `"<span class="hl-str">${esc(v)}</span>"`)
+      .replace(/\{([^}]+)\}/g, (_, v) => `{<span class="hl-num">${v}</span>}`);
+  }
+
+  // typed globals: int float bool str
+  if (/^\s*(int|float|bool|str)\s+/.test(line)) {
+    return line.replace(/^(\s*)(int|float|bool|str)(\s+)(\w+)(\s*=\s*)(.*)/, (_, ws, type, sp, name, eq, val) =>
+      `${ws}<span class="hl-type">${esc(type)}</span>${sp}<span class="hl-plain">${esc(name)}</span><span class="hl-op">${esc(eq)}</span><span class="hl-str">${esc(val)}</span>`);
+  }
+
+  // built-in prefixes
+  let out = esc(line);
+  out = out.replace(/\b(sensor|haptic|screen|device|profile|loadProfile|print)\b/g,
+    s => `<span class="hl-builtin">${s}</span>`);
+  out = out.replace(/\b(int|float|bool|str)\b/g,
+    s => `<span class="hl-type">${s}</span>`);
+  out = out.replace(/"([^"]*)"/g,
+    (_, v) => `"<span class="hl-str">${esc(v)}</span>"`);
+
+  return `<span class="hl-plain">${out}</span>`;
+}
+
+function hlJson(src) {
+  return src
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"([^"]+)":/g, (_, k) => `"<span class="hl-attr">${esc(k)}</span>":`)
+    .replace(/:\s*"([^"]*)"/g, (_, v) => `: "<span class="hl-str">${esc(v)}</span>"`)
+    .replace(/:\s*(\d+\.?\d*)/g, (_, n) => `: <span class="hl-num">${n}</span>`)
+    .replace(/:\s*(true|false|null)/g, (_, b) => `: <span class="hl-kw">${b}</span>`);
+}
+
+// ── PARSER ─────────────────────────────────────────────────────────────────────
+function parseDmxr(src) {
+  const result = {
+    includes: [], defines: {}, globals: [], sprites: [], svgs: [],
+    screens: [], runtimeBlocks: [], dmxiRefs: []
+  };
+  const lines = src.split('\n');
+  let i = 0;
+
+  function peek() { return i < lines.length ? lines[i] : null; }
+  function consume() { return lines[i++]; }
+  function eatBlock() {
+    let depth = 0, block = [];
+    while (i < lines.length) {
+      const l = lines[i];
+      if (l.includes('{')) depth++;
+      if (l.includes('}')) depth--;
+      block.push(consume());
+      if (depth === 0) break;
+    }
+    return block;
+  }
+
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = raw.trim();
+    i++;
+
+    if (!line || line.startsWith('//') || line.startsWith('#')) {
+      // #include / #define
+      const incM = line.match(/^#include\s+"?([^">\s]+)"?/);
+      if (incM) {
+        result.includes.push(incM[1]);
+        if (incM[1].endsWith('.dmxi')) result.dmxiRefs.push(incM[1]);
+      }
+      const defM = line.match(/^#define\s+(\w+)\s+"?([^"]+)"?/);
+      if (defM) result.defines[defM[1]] = defM[2].replace(/"/g,'');
+      continue;
+    }
+
+    // typed globals
+    const globM = line.match(/^(int|float|bool|str)\s+(\w+)\s*=\s*(.+)/);
+    if (globM) {
+      result.globals.push({ type: globM[1], name: globM[2], value: globM[3] });
+      continue;
+    }
+
+    // @sprite
+    if (line.startsWith('@sprite')) {
+      const name = line.match(/@sprite\s+(\w+)/)?.[1] || 'unnamed';
+      const block = [];
+      while (i < lines.length && !lines[i].trim().startsWith('@') && !lines[i].trim().startsWith('runtime') && !lines[i].trim().startsWith('<')) {
+        const sl = lines[i].trim();
+        if (sl === '}' || sl === '') { i++; if (sl === '}') break; continue; }
+        block.push(sl);
+        i++;
+      }
+      const sizeM = block.find(l => l.startsWith('size:'))?.match(/size:\s*(\d+)x(\d+)/);
+      const scaleM = block.find(l => l.startsWith('scale:'))?.match(/scale:\s*(\d+)/);
+      const palM = block.find(l => l.startsWith('palette:'))?.replace('palette:', '').trim().split(',').map(s=>s.trim());
+      const pixStart = block.findIndex(l => l === 'pixels:');
+      const pixels = pixStart >= 0 ? block.slice(pixStart+1) : [];
+      result.sprites.push({
+        name, w: sizeM ? +sizeM[1] : 8, h: sizeM ? +sizeM[2] : 8,
+        scale: scaleM ? +scaleM[1] : 1, palette: palM || [], pixels
+      });
+      continue;
+    }
+
+    // @svg
+    if (line.startsWith('@svg')) {
+      const name = line.match(/@svg\s+(\w+)/)?.[1] || 'unnamed';
+      const els = [];
+      while (i < lines.length) {
+        const sl = lines[i].trim();
+        i++;
+        if (sl === '}') break;
+        if (sl) els.push(sl);
+      }
+      result.svgs.push({ name, elements: els });
+      continue;
+    }
+
+    // <Screen
+    if (line.startsWith('<Screen')) {
+      const id  = line.match(/id="?(\w+)"?/)?.[1] || 'screen';
+      const bg  = line.match(/bg="([^"]+)"/)?.[1] || '#080c10';
+      const children = [];
+      const closeRe = /^<\/Screen>/;
+      while (i < lines.length) {
+        const sl = lines[i].trim();
+        i++;
+        if (closeRe.test(sl)) break;
+        if (sl && !sl.startsWith('//')) children.push(sl);
+      }
+      result.screens.push({ id, bg, children });
+      continue;
+    }
+
+    // runtime blocks
+    const rtM = line.match(/^runtime\s+(\w+)\s*\(/);
+    if (rtM) {
+      const name = rtM[1];
+      const body = [];
+      let depth = line.includes('{') ? 1 : 0;
+      while (i < lines.length) {
+        const sl = lines[i];
+        if (sl.includes('{')) depth++;
+        if (sl.includes('}')) depth--;
+        body.push(sl);
+        i++;
+        if (depth <= 0) break;
+      }
+      result.runtimeBlocks.push({ name, body });
+      continue;
+    }
+  }
+
+  return result;
+}
+
+function parseDmxi(src) {
+  try {
+    const obj = JSON.parse(src);
+    return { ok: true, data: obj };
+  } catch(e) {
+    return { ok: false, err: e.message };
+  }
+}
+
+// ── TRACE HELPERS ─────────────────────────────────────────────────────────────
+function addTrace(msg, cls='', icon='›') {
+  const el = document.getElementById('trace');
+  if (traceCount === 0) el.innerHTML = '';
+  traceCount++;
+  const row = document.createElement('div');
+  row.className = 'trace-row';
+  row.style.animationDelay = '0ms';
+  row.innerHTML = `
+    <div class="t-num">${String(traceCount).padStart(2,'0')}</div>
+    <div class="t-ico">${esc(icon)}</div>
+    <div class="t-msg ${cls}">${esc(msg)}</div>`;
+  el.appendChild(row);
+  el.parentElement.scrollTop = el.parentElement.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function setStatus(s, cls='') {
+  const el = document.getElementById('sbStatus');
+  const dot = document.getElementById('sbDot');
+  el.textContent = s;
+  el.className = 'sb-val ' + cls;
+  dot.className = 'sb-dot ' + cls;
+}
+
+// ── AST RENDERER ──────────────────────────────────────────────────────────────
+function renderAST(p) {
+  const el = document.getElementById('ast-panel');
+  let html = '';
+  const node = (label, attrs, indent) => {
+    const pad = '  '.repeat(indent);
+    let s = `<div class="ast-node"><span style="color:var(--dim2)">${pad}</span><span class="ast-kind">${esc(label)}</span>`;
+    for (const [k,v] of Object.entries(attrs||{})) {
+      s += ` <span class="ast-attr">${esc(k)}=</span><span class="ast-val">${esc(String(v))}</span>`;
+    }
+    return s + '</div>\n';
+  };
+
+  html += node('Program', { files: Object.keys(SAMPLES).length }, 0);
+  html += node('Includes', { count: p.includes.length }, 1);
+  p.includes.forEach(inc => html += node('Include', { path: inc }, 2));
+  html += node('Defines', { count: Object.keys(p.defines).length }, 1);
+  Object.entries(p.defines).forEach(([k,v]) => html += node('Define', { name: k, value: v }, 2));
+  html += node('Globals', { count: p.globals.length }, 1);
+  p.globals.forEach(g => html += node('Global', { type: g.type, name: g.name, value: g.value }, 2));
+  html += node('Sprites', { count: p.sprites.length }, 1);
+  p.sprites.forEach(s => html += node('Sprite', { name: s.name, size: `${s.w}x${s.h}`, scale: s.scale, palette: s.palette.length }, 2));
+  html += node('SVGs', { count: p.svgs.length }, 1);
+  p.svgs.forEach(s => html += node('SVG', { name: s.name, elements: s.elements.length }, 2));
+  html += node('Screens', { count: p.screens.length }, 1);
+  p.screens.forEach(s => {
+    html += node('Screen', { id: s.id, bg: s.bg, children: s.children.length }, 2);
+    s.children.slice(0,5).forEach(c => {
+      const tag = c.match(/<(\w+)/)?.[1] || '?';
+      html += node(tag, {}, 3);
+    });
+    if (s.children.length > 5) html += node(`...${s.children.length-5} more`, {}, 3);
+  });
+  html += node('RuntimeBlocks', { count: p.runtimeBlocks.length }, 1);
+  p.runtimeBlocks.forEach(r => html += node('Runtime', { name: r.name, lines: r.body.length }, 2));
+  el.innerHTML = html;
+}
+
+// ── SCREEN PREVIEW RENDERER ──────────────────────────────────────────────────
+function renderPreview(p) {
+  const canvas = document.getElementById('gloveCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,240,135);
+
+  if (p.screens.length === 0) {
+    ctx.fillStyle = '#0d1320';
+    ctx.fillRect(0,0,240,135);
+    ctx.fillStyle = '#3a5070';
+    ctx.font = '10px monospace';
+    ctx.fillText('no screens defined', 10, 70);
+    return;
+  }
+
+  const screen = p.screens[0];
+
+  // background
+  ctx.fillStyle = screen.bg || '#080c10';
+  ctx.fillRect(0, 0, 240, 135);
+
+  // render each child component approximation
+  screen.children.forEach(line => {
+    const tag  = line.match(/<(\w+)/)?.[1];
+    const xM   = line.match(/\bx=\{?(\d+)\}?/);
+    const yM   = line.match(/\by=\{?(\d+)\}?/);
+    const wM   = line.match(/\bw=\{?(\d+)\}?/);
+    const hM   = line.match(/\bh=\{?(\d+)\}?/);
+    const bgM  = line.match(/\bbg="([^"]+)"/);
+    const colM = line.match(/\bcolor="([^"]+)"/);
+    const txtM = line.match(/\btext="([^"]+)"/);
+    const labM = line.match(/\blabel="([^"]+)"/);
+
+    const x  = xM  ? +xM[1]  : 0;
+    const y  = yM  ? +yM[1]  : 0;
+    const w  = wM  ? +wM[1]  : 60;
+    const h  = hM  ? +hM[1]  : 16;
+    const bg = bgM ? bgM[1]  : null;
+    const col= colM? colM[1] : '#0af';
+
+    switch(tag) {
+      case 'Panel':
+        ctx.fillStyle = bg || '#0a1628';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#1a2535';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x+0.5, y+0.5, w-1, h-1);
+        break;
+      case 'Label':
+        ctx.fillStyle = col;
+        ctx.font = '9px monospace';
+        const txt = txtM ? txtM[1] : '';
+        ctx.fillText(txt.substring(0,28), x, y+9);
+        break;
+      case 'Button':
+        ctx.fillStyle = col + '22';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = col;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x+0.5, y+0.5, w-1, h-1);
+        ctx.fillStyle = col;
+        ctx.font = '9px monospace';
+        const lbl = labM ? labM[1] : '';
+        const tw = ctx.measureText(lbl).width;
+        ctx.fillText(lbl, x + (w-tw)/2, y + h/2 + 3);
+        break;
+      case 'FlexBar':
+        const fingers = +(line.match(/\bfingers=\{?(\d+)\}?/)?.[1]||5);
+        const bh = +(line.match(/\bheight=\{?(\d+)\}?/)?.[1]||30);
+        const bw = Math.floor((232 - (fingers-1)*6) / fingers);
+        for (let fi = 0; fi < fingers; fi++) {
+          const bx = x + fi*(bw+6);
+          ctx.fillStyle = '#0d1320';
+          ctx.fillRect(bx, y, bw, bh);
+          const frac = 0.3 + Math.random()*0.2;
+          ctx.fillStyle = `rgba(0,${80+frac*175},${255*(1-frac*0.6)},0.9)`;
+          ctx.fillRect(bx, y + bh - bh*frac, bw, bh*frac);
+        }
+        break;
+      case 'FoilDots':
+        for (let fi = 0; fi < 5; fi++) {
+          const dx = x + fi*26;
+          ctx.fillStyle = fi===2 ? '#00ff88' : '#1a2535';
+          ctx.beginPath();
+          ctx.arc(dx+9, y+9, 9, 0, Math.PI*2);
+          ctx.fill();
+        }
+        break;
+      case 'GestureLabel':
+        ctx.fillStyle = '#00ff8840';
+        ctx.fillRect(x, y, 80, 14);
+        ctx.fillStyle = '#00ff88';
+        ctx.font = '9px monospace';
+        ctx.fillText('JERK_FWD', x+2, y+10);
+        break;
+      case 'BatteryBar':
+        ctx.fillStyle = '#0d1320';
+        ctx.fillRect(x, y, w, h);
+        ctx.fillStyle = '#00ff88';
+        ctx.fillRect(x+1, y+1, (w-2)*0.75, h-2);
+        break;
+      case 'Terminal':
+        ctx.fillStyle = '#050810';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#1a2535';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x+0.5, y+0.5, w-1, h-1);
+        ctx.fillStyle = '#3a5070';
+        ctx.font = '8px monospace';
+        ctx.fillText('> terminal output', x+3, y+10);
+        break;
+    }
+  });
+
+  // render sprites on top (pixel art)
+  p.sprites.forEach(spr => {
+    renderSpritePreview(ctx, spr, 200, 10);
+  });
+
+  document.getElementById('preview-note').textContent = `screen: ${screen.id} — ${screen.children.length} components`;
+}
+
+function renderSpritePreview(ctx, spr, ox, oy) {
+  if (!spr.pixels || spr.pixels.length === 0) return;
+  const scale = spr.scale || 1;
+  const palette = spr.palette || [];
+  spr.pixels.forEach((row, ry) => {
+    const cells = row.split(/\s+/);
+    cells.forEach((cell, rx) => {
+      if (cell === '.') return;
+      let color = '#0af';
+      if (cell === '0' && palette[0]) color = palette[0];
+      else if (cell === '1' && palette[1]) color = palette[1];
+      else if (cell === '2' && palette[2]) color = palette[2];
+      else if (cell === '#') color = palette[palette.length-1] || '#fff';
+      ctx.fillStyle = color;
+      ctx.fillRect(ox + rx*scale, oy + ry*scale, scale, scale);
+    });
+  });
+}
+
+// ── STATE RENDERER ────────────────────────────────────────────────────────────
+function renderState(p) {
+  const el = document.getElementById('state-content');
+  const row = (k, v, cls) => `<div class="state-row"><span class="state-key">${esc(k)}</span><span class="state-val ${cls||''}">${esc(String(v))}</span></div>`;
+  const section = (title, rows) => `<div class="state-section"><div class="state-section-title">${title}</div>${rows}</div>`;
+
+  let html = '';
+
+  html += section('defines', Object.entries(p.defines).map(([k,v]) => row(k, v, 'str')).join('') || row('—','',''));
+  html += section('globals', p.globals.map(g => row(g.name, g.value, g.type === 'bool' ? (g.value==='true'?'bool-true':'bool-false') : g.type === 'str' ? 'str' : 'num')).join('') || row('—','',''));
+  html += section('screens', p.screens.map(s => row(s.id, `${s.children.length} components`, 'num')).join('') || row('—','',''));
+  html += section('sprites', p.sprites.map(s => row(s.name, `${s.w}x${s.h} scale:${s.scale}`, 'num')).join('') || row('—','',''));
+  html += section('svgs', p.svgs.map(s => row(s.name, `${s.elements.length} elements`, 'num')).join('') || row('—','',''));
+  html += section('runtime blocks', p.runtimeBlocks.map(r => row(r.name + '()', `${r.body.length} lines`, 'num')).join('') || row('—','',''));
+  html += section('includes', p.includes.map(inc => row(inc, 'included', 'str')).join('') || row('—','',''));
+
+  el.innerHTML = html;
+
+  // update status bar
+  document.getElementById('sbBlocks').textContent = p.runtimeBlocks.length;
+  document.getElementById('sbComponents').textContent = p.screens.reduce((acc, s) => acc + s.children.length, 0);
+  document.getElementById('sbSprites').textContent = p.sprites.length;
+}
+
+// ── RUN ───────────────────────────────────────────────────────────────────────
+function runFull() {
+  traceCount = 0;
+  document.getElementById('trace').innerHTML = '';
+  setProgress(0);
+  setStatus('running', 'ok');
+
+  const src = document.getElementById('editor').value;
+  const ext = activeFile.split('.').pop();
+
+  if (ext === 'dmxi') {
+    runDmxi(src);
+    return;
+  }
+
+  parsed = parseDmxr(src);
+  renderAST(parsed);
+  renderState(parsed);
+  renderPreview(parsed);
+
+  const p = parsed;
+  const totalSteps = 8 + p.sprites.length + p.svgs.length + p.screens.length + p.runtimeBlocks.length + p.globals.length;
+  let step = 0;
+
+  function tick(fn, delay=80) {
+    setTimeout(() => {
+      fn();
+      step++;
+      setProgress(Math.min(99, Math.round(step/totalSteps*100)));
+    }, delay);
+  }
+
+  let t = 0;
+  const q = (fn) => { t += 80; tick(fn, t); };
+
+  q(() => addTrace('dmxr runtime v0.2 initializing...', 't-info', '⬡'));
+  q(() => addTrace(`parsing file: ${activeFile}`, 't-dim', '›'));
+  q(() => addTrace(`detected: ${ext.toUpperCase()} file`, 't-dim', '›'));
+
+  if (p.includes.length) {
+    q(() => addTrace(`processing ${p.includes.length} include(s)`, 't-dim', '›'));
+    p.includes.forEach(inc => {
+      q(() => addTrace(`  #include "${inc}"${inc.endsWith('.dmxi') ? ' — dmxi bundle' : ''}`, 't-dim', '·'));
+    });
+  }
+
+  if (Object.keys(p.defines).length) {
+    q(() => addTrace(`registered ${Object.keys(p.defines).length} #define(s)`, 't-cpp', '🔷'));
+    Object.entries(p.defines).forEach(([k,v]) => {
+      q(() => addTrace(`  #define ${k} = "${v}"`, 't-cpp', '·'));
+    });
+  }
+
+  if (p.globals.length) {
+    q(() => addTrace(`declaring ${p.globals.length} global variable(s)`, 't-dim', '›'));
+    p.globals.forEach(g => {
+      q(() => addTrace(`  ${g.type} ${g.name} = ${g.value}`, 't-dim', '·'));
+    });
+  }
+
+  if (p.sprites.length) {
+    q(() => addTrace(`compiling ${p.sprites.length} @sprite definition(s)`, 't-sprite', '🎨'));
+    p.sprites.forEach(spr => {
+      q(() => addTrace(`  @sprite ${spr.name} — ${spr.w}x${spr.h} px · scale:${spr.scale} · ${spr.palette.length} colors`, 't-sprite', '·'));
+    });
+  }
+
+  if (p.svgs.length) {
+    q(() => addTrace(`registering ${p.svgs.length} @svg fragment(s)`, 't-svg', '🖋'));
+    p.svgs.forEach(svg => {
+      q(() => addTrace(`  @svg ${svg.name} — ${svg.elements.length} element(s)`, 't-svg', '·'));
+    });
+  }
+
+  if (p.screens.length) {
+    q(() => addTrace(`building ${p.screens.length} screen tree(s)`, 't-jsx', '🖥'));
+    p.screens.forEach(scr => {
+      q(() => {
+        addTrace(`  <Screen id="${scr.id}" bg="${scr.bg}"> — ${scr.children.length} child component(s)`, 't-jsx', '·');
+        const compCounts = {};
+        scr.children.forEach(c => {
+          const tag = c.match(/<(\w+)/)?.[1] || '?';
+          compCounts[tag] = (compCounts[tag] || 0) + 1;
+        });
+        Object.entries(compCounts).forEach(([tag, count]) => {
+          setTimeout(() => addTrace(`    <${tag}> ×${count}`, 't-jsx', '·'), 30);
+        });
+      });
+    });
+  }
+
+  if (p.runtimeBlocks.length) {
+    q(() => addTrace(`registering ${p.runtimeBlocks.length} runtime block(s)`, 't-info', '⚙'));
+    p.runtimeBlocks.forEach(rt => {
+      q(() => {
+        const pyLines = rt.body.filter(l => l.trim().startsWith('py::')).length;
+        const hasPy = rt.body.some(l => l.includes('py::'));
+        addTrace(`  runtime ${rt.name}() — ${rt.body.length} lines${hasPy ? ' · contains py:: block' : ''}`, 't-info', '·');
+        if (hasPy) {
+          setTimeout(() => addTrace(`    py:: block detected — python interpreter context`, 't-py', '·'), 30);
+        }
+      });
+    });
+  }
+
+  q(() => { addTrace('executing runtime start()...', 't-ok', '▶'); });
+
+  const startBlock = p.runtimeBlocks.find(r => r.name === 'start');
+  if (startBlock) {
+    let inPy = false;
+    startBlock.body.forEach((line, li) => {
+      const l = line.trim();
+      if (!l || l === '{' || l === '}') return;
+      q(() => {
+        if (l === 'py::') { inPy = true; addTrace('  entering py:: block', 't-py', '🐍'); return; }
+        if (inPy && !l.startsWith('py::')) {
+          if (l.startsWith('screen.')) addTrace(`  py: ${l}`, 't-ok', '·');
+          else if (l.startsWith('print')) {
+            const msg = l.match(/print\(f?"([^"]+)"/)?.[1] || l;
+            addTrace(`  stdout: ${msg}`, 't-ok', '»');
+          }
+          else addTrace(`  py: ${l}`, 't-py', '·');
+        } else {
+          inPy = false;
+          if (l.startsWith('screen.render')) addTrace(`  ${l} → screen rendered`, 't-ok', '✓');
+          else if (l.startsWith('print')) addTrace(`  ${l}`, 't-ok', '»');
+          else if (l.startsWith('loadProfile')) addTrace(`  ${l} → profile loaded`, 't-dim', '·');
+          else addTrace(`  ${l}`, 't-dim', '·');
+        }
+      });
+    });
+  } else {
+    q(() => addTrace('  no start() block found — skipping', 't-warn', '⚠'));
+  }
+
+  const loopBlock = p.runtimeBlocks.find(r => r.name === 'loop');
+  q(() => {
+    if (loopBlock) addTrace(`runtime loop() registered — ${loopBlock.body.length} lines / tick`, 't-info', '↻');
+    else addTrace('no loop() block — static app', 't-warn', '⚠');
+  });
+
+  q(() => {
+    const others = p.runtimeBlocks.filter(r => r.name !== 'start' && r.name !== 'loop');
+    others.forEach(r => addTrace(`event handler registered: runtime ${r.name}()`, 't-dim', '·'));
+  });
+
+  setTimeout(() => {
+    setProgress(100);
+    setStatus('done', 'ok');
+    addTrace('runtime ready ✓', 't-ok', '✓');
+  }, t + 100);
+}
+
+function runDmxi(src) {
+  const r = parseDmxi(src);
+  addTrace(`parsing .dmxi bundle: ${activeFile}`, 't-info', '⬡');
+  if (!r.ok) {
+    addTrace(`JSON parse error: ${r.err}`, 't-err', '✗');
+    setStatus('error', 'error');
+    return;
+  }
+  const d = r.data;
+  addTrace(`bundle: ${d.name || '?'} v${d.version || '?'}`, 't-ok', '✓');
+  if (d.entries) {
+    const entries = Object.entries(d.entries);
+    addTrace(`${entries.length} entries found`, 't-dim', '›');
+    entries.forEach(([key, entry]) => {
+      const type = entry.type || '?';
+      const size = typeof entry.content === 'string' ? entry.content.length : JSON.stringify(entry.content).length;
+      let cls = 't-dim';
+      if (type === 'html') cls = 't-jsx';
+      if (type === 'md')   cls = 't-md';
+      if (type === 'py')   cls = 't-py';
+      if (type === 'json') cls = 't-ok';
+      addTrace(`  ${key}: type=${type} size=${size}b`, cls, '·');
+    });
+  }
+  setProgress(100);
+  setStatus('done', 'ok');
+
+  const state = document.getElementById('state-content');
+  let html = '<div class="state-section"><div class="state-section-title">bundle entries</div>';
+  if (d.entries) {
+    Object.entries(d.entries).forEach(([k,v]) => {
+      html += `<div class="state-row"><span class="state-key">${esc(k)}</span><span class="state-val str">${esc(v.type)}</span></div>`;
+    });
+  }
+  html += '</div>';
+  state.innerHTML = html;
+}
+
+// ── STEP ──────────────────────────────────────────────────────────────────────
+function stepNext() {
+  if (stepIdx === 0) {
+    steps = [];
+    traceCount = 0;
+    document.getElementById('trace').innerHTML = '';
+    const src = document.getElementById('editor').value;
+    const ext = activeFile.split('.').pop();
+    if (ext === 'dmxi') { runDmxi(src); return; }
+    parsed = parseDmxr(src);
+    renderAST(parsed);
+    renderState(parsed);
+
+    const p = parsed;
+    const push = (msg, cls, icon) => steps.push({msg, cls, icon});
+    push('dmxr runtime v0.2 initializing...', 't-info', '⬡');
+    p.includes.forEach(inc => push(`#include "${inc}"`, 't-cpp', '🔷'));
+    Object.entries(p.defines).forEach(([k,v]) => push(`#define ${k} = "${v}"`, 't-cpp', '·'));
+    p.globals.forEach(g => push(`${g.type} ${g.name} = ${g.value}`, 't-dim', '·'));
+    p.sprites.forEach(s => push(`@sprite ${s.name} — ${s.w}x${s.h}`, 't-sprite', '🎨'));
+    p.svgs.forEach(s => push(`@svg ${s.name}`, 't-svg', '🖋'));
+    p.screens.forEach(s => push(`<Screen id="${s.id}"> — ${s.children.length} components`, 't-jsx', '🖥'));
+    p.runtimeBlocks.forEach(r => push(`runtime ${r.name}() — ${r.body.length} lines`, 't-info', '⚙'));
+    push('all done', 't-ok', '✓');
+    setStatus('stepping', 'warn');
+  }
+
+  if (stepIdx < steps.length) {
+    const s = steps[stepIdx];
+    addTrace(s.msg, s.cls, s.icon);
+    stepIdx++;
+    setProgress(Math.round(stepIdx / steps.length * 100));
+    if (stepIdx === steps.length) {
+      setStatus('done', 'ok');
+      renderPreview(parsed);
+    }
+  } else {
+    addTrace('end of steps', 't-dim', '·');
+  }
+}
+
+// ── CLEAR ─────────────────────────────────────────────────────────────────────
+function clearAll() {
+  traceCount = 0; stepIdx = 0; steps = []; parsed = null;
+  document.getElementById('trace').innerHTML = '<div style="color:var(--dim);font-size:11px;padding:14px">// run a .dmxr file to see trace output</div>';
+  document.getElementById('ast-panel').innerHTML = '<div style="color:var(--dim);font-size:11px;padding:14px">// AST will appear after parsing</div>';
+  document.getElementById('state-content').innerHTML = '<div style="color:var(--dim);font-size:11px;padding:14px">// parsed state will appear here</div>';
+  document.getElementById('preview-note').textContent = 'run a .dmxr file to render the screen';
+  const ctx = document.getElementById('gloveCanvas').getContext('2d');
+  ctx.clearRect(0,0,240,135);
+  setProgress(0);
+  setStatus('idle');
+  document.getElementById('sbBlocks').textContent = '—';
+  document.getElementById('sbComponents').textContent = '—';
+  document.getElementById('sbSprites').textContent = '—';
+}
+
+// ── PANEL SWITCHER ────────────────────────────────────────────────────────────
+function switchPanel(name) {
+  document.querySelectorAll('.out-tab').forEach(t => t.classList.toggle('active', t.dataset.panel === name));
+  document.querySelectorAll('.out-panel').forEach(p => p.classList.toggle('active', p.id === name+'-panel'));
+}
+
+init();
+</script>
+</body>
+</html>
