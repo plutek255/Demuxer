@@ -1,0 +1,200 @@
+// hello_glove.dmxr
+// simplest possible demuxer app — shows sensor state on the touchscreen
+// bluejay electronics LLC
+
+#include <demuxer.h>
+#include "hello.dmxi"
+
+#define APP_NAME "hello glove"
+#define VERSION  "1.0"
+
+// ── globals ───────────────────────────────────────────────────────────────────
+int   tickCount      = 0
+bool  connected      = false
+str   lastGesture    = "none"
+float gripThreshold  = 0.65
+
+// ── sprites ───────────────────────────────────────────────────────────────────
+@sprite icon_hand {
+  size: 8x8
+  scale: 2
+  palette: #00aaff, #ffffff, transparent
+  pixels:
+    . 0 0 . . 0 0 .
+    0 0 0 0 0 0 0 0
+    0 1 0 0 0 0 1 0
+    0 0 0 0 0 0 0 0
+    . 0 0 0 0 0 0 .
+    . . 0 0 0 0 . .
+    . . . 0 0 . . .
+    . . . . . . . .
+}
+
+@sprite dot_on {
+  size: 4x4
+  palette: #00ff88, transparent
+  pixels:
+    . 0 0 .
+    0 0 0 0
+    0 0 0 0
+    . 0 0 .
+}
+
+@sprite dot_off {
+  size: 4x4
+  palette: #1a2535, transparent
+  pixels:
+    . 0 0 .
+    0 0 0 0
+    0 0 0 0
+    . 0 0 .
+}
+
+// ── svg decorations ───────────────────────────────────────────────────────────
+@svg glow_ring {
+  <circle cx="12" cy="12" r="10" fill="none" stroke="#0066ff" stroke-width="1.5" opacity="0.4"/>
+  <circle cx="12" cy="12" r="6"  fill="none" stroke="#00aaff" stroke-width="1"   opacity="0.6"/>
+}
+
+// ── ui tree ───────────────────────────────────────────────────────────────────
+<Screen id="main" width={240} height={135} bg="#080c10">
+
+  // header
+  <Panel id="hdr" x={0} y={0} w={240} h={16} bg="#0a1628" border="#1a2535">
+    <Sprite src={icon_hand} x={3} y={0} />
+    <Label text={APP_NAME} x={22} y={2} font="mono" size={11} color="#00aaff" />
+    <Label text={VERSION}  x={200} y={2} font="mono" size={10} color="#1a2535" />
+    <BatteryBar x={170} y={5} w={24} h={6} />
+  </Panel>
+
+  // flex bars — the main visual
+  <FlexBar id="flex_display" x={4} y={22} fingers={5} height={34} />
+
+  // foil contact dots row
+  <FoilDots id="foil_row" x={8} y={62} count={5} />
+
+  // gesture label
+  <GestureLabel id="gesture_out" x={60} y={60} />
+
+  // buttons
+  <Button id="btn_recal" x={4} y={82} w={70} h={20}
+    label="RECAL" color="#ffcc00"
+    onPress={ device.send("CMD:CALIBRATE") }
+  />
+
+  <Button id="btn_profile" x={80} y={82} w={80} h={20}
+    label="PROFILE" color="#0066ff"
+    onPress={ py::
+      profiles = profile.list()
+      idx = profiles.index(device.activeProfile) if device.activeProfile in profiles else 0
+      next_p = profiles[(idx + 1) % len(profiles)]
+      profile.load(next_p)
+      print(f"switched to {next_p}")
+    }
+  />
+
+  <Button id="btn_lock" x={166} y={82} w={70} h={20}
+    label="LOCK" color="#ff4455"
+    onPress={ screen.lock() }
+    onHold={ screen.unlock() }
+  />
+
+  // terminal log from dmxi bundle
+  <Terminal id="log_out" x={4} y={108} w={232} h={24}
+    source="hello.dmxi::terminal"
+    scrollable={true}
+    font="mono" size={9} color="#4a6080"
+  />
+
+</Screen>
+
+// ── boot screen (shows while connecting) ──────────────────────────────────────
+<Screen id="boot" width={240} height={135} bg="#080c10">
+  <SVG id="boot_glow" x={96} y={38}>
+    <circle cx="24" cy="24" r="22" fill="none" stroke="#0066ff" stroke-width="2" opacity="0.5"/>
+    <circle cx="24" cy="24" r="14" fill="none" stroke="#00aaff" stroke-width="1.5"/>
+    <circle cx="24" cy="24" r="6"  fill="#0066ff"/>
+  </SVG>
+  <Label text="demuxer init" x={72} y={90} font="mono" size={13} color="#00aaff" />
+  <Label text="connecting..." x={80} y={108} font="mono" size={10} color="#1a2535" />
+</Screen>
+
+// ── lifecycle ─────────────────────────────────────────────────────────────────
+runtime start() {
+  screen.render("boot")
+  print("hello glove — booting")
+
+  py::
+    import json
+    print(f"loaded app: {APP_NAME} v{VERSION}")
+
+  loadProfile("default")
+
+  py::
+    connected = sensor.connected
+    if connected:
+      print("arduino connected")
+    else:
+      print("waiting for arduino...")
+
+  screen.render("main")
+  print("ui ready")
+}
+
+runtime loop() {
+  tickCount = tickCount + 1
+  sensor.readAll()
+
+  py::
+    # grip detection
+    all_bent = all(sensor.flex[i] > gripThreshold for i in range(1, 5))
+    if all_bent:
+      lastGesture = "GRIP"
+      haptic.pulse(2, 120, 40)
+
+    # gesture passthrough
+    if sensor.gesture != "none":
+      lastGesture = sensor.gesture
+
+    # foil C = push to talk
+    if sensor.foil[2]:
+      device.send("CMD:PTT:ON")
+    
+    # foil D = modifier held
+    if sensor.foil[3] and sensor.gesture == "JERK_FORWARD":
+      device.send("CMD:ABILITY_1")
+
+    # foil RECAL held
+    if sensor.foil[4]:
+      device.send("CMD:CALIBRATE")
+
+  screen.update()
+}
+
+runtime onGesture(gesture g) {
+  py::
+    print(f"gesture: {g.type} ({g.magnitude:.2f})")
+
+    if g.type == "JERK_FORWARD":
+      device.send("CMD:MELEE")
+      haptic.pulse(1, 200, 80)
+
+    elif g.type == "JERK_BACKWARD":
+      device.send("CMD:BLOCK")
+
+    elif g.type in ("TWIST_LEFT", "TWIST_RIGHT"):
+      device.send("CMD:RELOAD")
+      haptic.pulse(0, 150, 60)
+}
+
+runtime onFoil(int contact) {
+  py::
+    labels = ["CONFIRM", "BACK", "PTT", "MODIFIER", "RECAL"]
+    print(f"foil {labels[contact]} pressed")
+}
+
+runtime onSleep() {
+  print("going to sleep — saving state")
+  py::
+    profile.save(device.activeProfile)
+}
