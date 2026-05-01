@@ -1,51 +1,61 @@
-# Changelog
+# Changelog — BlueJay Demuxer
 
-All notable changes to the BlueJay Demuxer project are documented here.
-
-Format loosely follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+All notable changes to BlueJay Demuxer are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
 ## [Unreleased]
 
-- Autoclick haptic rapid-input system (servo/tendon TBD)
-- Final sweep / bug check before prototype completion
-- NeoPixel LED strip installation (forearm crevice lighting)
+### Planned
+- Olympian model hardware finalization
+- Wireless expansion module support
+- IoT brick add-on integration
 
 ---
 
-## [Init — Beta] · Current
+## [0.4.0] — 2026-04-04
 
 ### Added
-- Glove base form factor (fabric/wearable layer, finger coverage)
-- ILI9341 2.8" 320×240 touchscreen on dorsal forearm module
-- 5× flex sensors (one per finger) mapped to touchscreen UI + USB output
-- Palm foil contacts (conductive, circuit-complete on touch)
-- 6DOF IMU for wrist gesture detection (push, pull, twist, tilt)
-- 6× haptic vibration motors
-- Custom aluminum plating on forearm module
-- Parent desktop program for USB data link + remote touchscreen access
-- Pointer device (dual-light emitter, Wiimote-style)
-
-### Acquired (BOM — $361.09)
-- SparkFun: vibration motors ×6, flex sensors ×5, 6DOF IMU, ILI9341 touchscreen, ESP32-S3, sub-micro servos ×4, IR emitter, buttons — $251.04
-- Adafruit: NeoPixel LED strip 4m — $34.95
-- Amazon: Rolyan compression gloves ×2, aluminum flashing ×2 — $75.10
+- `docs/hardware.md` — updated Olympian model specs (fans, camera, IR emitter, voltmeter headers, UHF RFID tag, ultrasonic sensor)
 
 ---
 
-## Roadmap
+## [0.3.0] — 2026-04-02
 
-### [Demuxer Olympian — v2.0] · Planned
-- Wireless WiFi brick wearable add-on (home IoT: lights, devices, etc.)
-- Wireless expansion features deferred from Init hardware
+### Added
+- `tools/dmxr-interpreter.html` — browser-based .dmxr interpreter tool
+- `examples/hello.dmxi` — compiled .dmxi bundle example
+- `examples/wheel_mode.dmxr` — wheel mode example app
+- `examples/finger_walk.dmxr` — finger-walk mode example app
+- `examples/hello_glove.dmxr` — hello glove example app
+- `docs/DMXR_SPEC.md` — .dmxr language specification v0.2
+- Updated `docs/gestures.md` and `docs/hardware.md`
 
-### [Demuxer Protocol 1–9] · Future
-- Emergency signal conversion (HDMI/aux → RCA)
-- Emergency bridge mode
-- Audio/video relay
+### Changed
+- CI pipeline disabled (GitLab Free plan — no runner minutes)
 
-### [Demuxer Tachyon GX / Parabola GX] · Concept
-- Full sci-fi forearm plate aesthetic (Borderlands-style cyber-arm)
-- Remote PC functionality + finger-walk gesture (Tachyon)
-- Deep smart home integration via gestures (Parabola)
+---
+
+## [0.2.0] — 2026-04-01
+
+### Added
+- BlueJay logo asset (`assets/JPEG_image.jpeg`)
+- Logo in README
+
+---
+
+## [0.1.0] — 2026-03-31
+
+### Added
+- Initial scaffold — firmware, profiles, runtime, docs, tools
+- `firmware/` — main.c, flex.c, foil.c, haptic.c, imu.c, touchscreen.c, demuxer.h
+- `profiles/` — default, gamepad, keyboard JSON profiles
+- `runtime/` — app.dmxb, app.dmxr, install.dmxr, worker.js
+- `docs/` — hardware reference, gesture reference
+- `CHANGELOG.md`, `CONTRIBUTING.md`, `LICENSE.md` (CC BY 4.0), `README.md`
+- `info.json`
+
+---
+
+© BlueJay Electronics LLC
