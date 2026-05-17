@@ -1,5 +1,7 @@
 pages:
   stage: deploy
+  script:
+    - echo "deploying public website to $CI_PAGES_URL, which is viewable to everyone"
   artifacts:
     paths:
       - public
