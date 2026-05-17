@@ -1,6 +1,7 @@
-# CI disabled — no shared runner minutes on free plan
-# Re-enable when moving to a paid plan or personal namespace
-
-workflow:
+pages:
+  stage: deploy
+  artifacts:
+    paths:
+      - public
   rules:
-    - when: never
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
