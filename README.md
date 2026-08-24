@@ -18,8 +18,8 @@
 | **Demuxer Elite Dev** | developer-focused version |
 | **Demuxer Elite Pulse** | extra haptics + enhanced features |
 | **Demuxer Optical** | VR/aim assistance focused |
-| **Demuxer Tachyon/Tachyon GX** | earlier GX model — remote PC functionality + finger-walk gesture, sleek sci-fi full-forearm mechanical design |
-| **Demuxer Parabola/Parabola GX** | later GX model — sci-fi forearm design + deep smart home integration (e.g. F4+F6 gesture combo triggers lights, playlists, etc.) |
+| **Demuxer Tachyon/Tachyon GX** | new model with earlier GX model — remote PC functionality + finger-walk gesture, sleek sci-fi full-forearm mechanical design |
+| **Demuxer Parabola/Parabola GX** | another model with later GX model — sci-fi forearm design + deep smart home integration (e.g. F4+F6 gesture combo triggers lights, playlists, etc.) |
 
 > **Tachyon GX and Parabola GX** are designed to look like a full sci-fi glove — sleek mechanical cyber-arm aesthetic (reference: HALO-style arm).
 
