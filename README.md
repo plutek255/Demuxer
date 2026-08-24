@@ -1,9 +1,8 @@
-![BlueJay Logo](https://gitlab.com/zynecon903-group/BlueJay_Demuxer/-/raw/main/assets/JPEG_image.jpeg)
+![Plutek](assets/plutek-logo.png)
 
-**Manufacturer:** BlueJay Electronics LLC
+**Manufacturer:** Plutek Electronics LLC
 **Make:** Demuxer
 **Current State:** Beta (Init)
-**Logo:** BlueJay — circle body + triangle beak arrow + leg marks (two versions: full logo and app/boot icon)
 
 ---
 
@@ -19,10 +18,10 @@
 | **Demuxer Elite Dev** | developer-focused version |
 | **Demuxer Elite Pulse** | extra haptics + enhanced features |
 | **Demuxer Optical** | VR/aim assistance focused |
-| **Demuxer Tachyon GX** | earlier GX model — remote PC functionality + finger-walk gesture, sleek sci-fi full-forearm mechanical design |
-| **Demuxer Parabola GX** | later GX model — sci-fi forearm design + deep smart home integration (e.g. F4+F6 gesture combo triggers lights, playlists, etc.) |
+| **Demuxer Tachyon/Tachyon GX** | earlier GX model — remote PC functionality + finger-walk gesture, sleek sci-fi full-forearm mechanical design |
+| **Demuxer Parabola/Parabola GX** | later GX model — sci-fi forearm design + deep smart home integration (e.g. F4+F6 gesture combo triggers lights, playlists, etc.) |
 
-> **Tachyon GX and Parabola GX** are designed to look like a full sci-fi forearm plate — sleek mechanical cyber-arm aesthetic (reference: Borderlands-style arm).
+> **Tachyon GX and Parabola GX** are designed to look like a full sci-fi glove — sleek mechanical cyber-arm aesthetic (reference: HALO-style arm).
 
 ---
 
@@ -30,7 +29,7 @@
 
 ### Overview
 
-A sensor-packed glove controller that tracks finger bends, adds foil contacts, haptic feedback, and detects wrist gestures with a 6DOF sensor, plus a forearm touchscreen for extra controls and IoT features.
+A sensor-packed glove controller that tracks finger bends, uses palm-mounted buttons, haptic feedback, and detects wrist gestures with a 6DOF sensor, plus a forearm touchscreen for extra controls and IoT features.
 
 **Primary goal:** Translate natural hand/finger/wrist movement into reliable game inputs while keeping common controls easy to reach.
 
@@ -77,7 +76,7 @@ A sensor-packed glove controller that tracks finger bends, adds foil contacts, h
 
 **Ergonomics considerations**
 
-* Foil contacts positioned to avoid accidental triggers while gripping
+* Buttons positioned to avoid accidental triggers while gripping
 * Touchscreen placement optimized so it's visible but not constantly bumped
 * Balanced weight distribution: keep heavier parts closer to forearm rather than fingers
 
@@ -376,9 +375,9 @@ A sensor-packed glove controller that tracks finger bends, adds foil contacts, h
 
 ---
 
-### BlueJay OS & DMX Platform
+### Plutek OS & DMX Platform
 
-The Demuxer runs on **BlueJay OS** with its own scripting language and app ecosystem called **DMX**.
+The Demuxer runs on **Plutek OS** with its own scripting language and app ecosystem called **DMX**.
 
 **DMX File Ecosystem:**
 
@@ -417,7 +416,7 @@ The Demuxer runs on **BlueJay OS** with its own scripting language and app ecosy
 5. **UI validation** — icon, notification layout, touchscreen resolution
 6. **Malware prevention** — blocks infinite loops, network spam, file deletion
 
-**Compatibility badge system:** `BJ_INIT` `BJ_ELITE` `BJ_PROTOCOL_SERIES`
+**Compatibility badge system:** `PTK_INIT` `PTK_ELITE` `PTK_PROTOCOL_SERIES`
 
 ---
 
@@ -480,7 +479,7 @@ Triggers: emergency button, long-press gesture, finger contact sequence, automat
 
 ### Open Questions / To Be Specified
 
-* Exact number of foil contacts and their layout
+* Exact number of palm-mounted buttons and their layout
 * Touchscreen size, resolution, and UI design
 * Battery capacity and expected runtime
 * Wired vs wireless priority (or both)
