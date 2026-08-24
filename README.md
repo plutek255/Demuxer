@@ -1,4 +1,4 @@
-![Plutek](assets/plutek-logo.png)
+![Plutek](assets/IMG_0486.png)
 
 **Manufacturer:** Plutek Electronics LLC
 **Make:** Demuxer
