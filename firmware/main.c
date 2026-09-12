@@ -1,22 +1,25 @@
 #include "demuxer.h"
 
-// ── main.c ────────────────────────────────────────────────────────────────────
+// 🟢 main.c 🟢
+
 // entry point for demuxer init firmware
 // handles main loop, calibration flow, and finger-walk mode logic
 
-// ── finger-walk config ────────────────────────────────────────────────────────
-#define FINGERWALK_WALK_THRESH   1.5f   // taps/sec below this = walk
-#define FINGERWALK_RUN_THRESH    3.5f   // taps/sec above this = run
-#define FINGERWALK_TAP_FLEX      0.6f   // flex threshold to count as a tap
-#define FINGERWALK_DEBOUNCE_MS   80     // min ms between tap events (prevent double-fire)
+// 🟢 finger-walk config 🟢
+#define FINGERWALK_WALK_THRESH 1.5f // taps/sec below this = walk
+#define FINGERWALK_RUN_THRESH 3.5f // taps/sec above this = run
+#define FINGERWALK_TAP_FLEX 0.6f // flex threshold to count as a tap
+#define FINGERWALK_DEBOUNCE_MS 80 // min ms between tap events (prevent double-fire)
 
-// ── global state ──────────────────────────────────────────────────────────────
+#define BATTERY_DEFAULT_PCT 100 // default charge on bootup
+
+// 🟢 global state 🟢
 static demuxer_state_t _state = {0};
 
-// stub — replace with platform ms timer
+// stub – replace with platform ms timer
 static uint32_t _millis(void) { return 0; }
 
-// ── finger-walk tick ──────────────────────────────────────────────────────────
+// 🟢 finger-walk tick 🟢
 // call every main loop iteration when finger-walk mode is active
 // detects alternating index/middle taps and maps to movement speed
 static void _fingerwalk_tick(demuxer_state_t *s) {
@@ -31,7 +34,7 @@ static void _fingerwalk_tick(demuxer_state_t *s) {
     bool middle_tap = flex->normalized[FINGER_MIDDLE] >= FINGERWALK_TAP_FLEX;
 
     uint8_t tapping_finger = 0;
-    if (index_tap  && fw->last_tap_finger != FINGER_INDEX)  tapping_finger = FINGER_INDEX;
+    if (index_tap && fw->last_tap_finger != FINGER_INDEX) tapping_finger = FINGER_INDEX;
     if (middle_tap && fw->last_tap_finger != FINGER_MIDDLE) tapping_finger = FINGER_MIDDLE;
 
     if (tapping_finger && (now - fw->last_tap_ms) >= FINGERWALK_DEBOUNCE_MS) {
@@ -59,11 +62,11 @@ static void _fingerwalk_tick(demuxer_state_t *s) {
         // run
     }
 
-    // wrist twist → turning (handled by IMU gesture: GESTURE_TWIST_LEFT/RIGHT)
-    // no special handling needed here — imu_detect_gesture covers it
+    // wrist twist – turning (handled by IMU gesture: GESTURE_TWIST_LEFT/RIGHT)
+    // no special handling needed here – imu_detect_gesture covers it
 }
 
-// ── full calibration flow ─────────────────────────────────────────────────────
+// 🟢 full calibration flow 🟢
 void demuxer_calibrate_full(demuxer_state_t *s) {
     // step 1: hand relaxed baseline
     flex_data_t baseline = {0};
@@ -75,7 +78,7 @@ void demuxer_calibrate_full(demuxer_state_t *s) {
     flex_calibrate(NULL, &max_curl);
 
     // step 3: IMU baseline (wrist neutral, arm forward)
-    // wrist motion test just samples some gestures — thresholds stay at defaults
+    // wrist motion test just samples some gestures – thresholds stay at defaults
     // user does forward/back jerk + twist for confirmation feedback
 
     // step 4: wheel mode calibration
@@ -83,7 +86,7 @@ void demuxer_calibrate_full(demuxer_state_t *s) {
     s->wheel.center_x   = 0.0f;  // TODO: sample from IMU during cal
     s->wheel.lock_left  = -45.0f;
     s->wheel.lock_right =  45.0f;
-    s->wheel.deadzone   = 0.05f;
+    s->wheel.deadozone  = 0.05f;
 
     // step 5: finger-walk thresholds
     s->fingerwalk.walk_threshold = FINGERWALK_WALK_THRESH;
@@ -93,7 +96,7 @@ void demuxer_calibrate_full(demuxer_state_t *s) {
     touchscreen_render_status(s);
 }
 
-// ── init ──────────────────────────────────────────────────────────────────────
+// 🟢 init 🟢
 void demuxer_init(void) {
     flex_init();
     imu_init();
@@ -111,10 +114,10 @@ void demuxer_init(void) {
     _state.fingerwalk.run_threshold  = FINGERWALK_RUN_THRESH;
 
     _state.calibrated = false;
-    _state.battery_pct = 100; // TODO: read from battery gauge IC
+    _state.battery_pct = BATTERY_DEFAULT_PCT; // Default battery level before actual read
 }
 
-// ── main loop ─────────────────────────────────────────────────────────────────
+// 🟢 main loop 🟢
 void demuxer_loop(void) {
     // read all sensors
     flex_read(&_state.flex);
@@ -131,13 +134,13 @@ void demuxer_loop(void) {
     if (_state.wheel.active) {
         imu_update_wheel(&_state.wheel, &_state.imu);
         // TODO: map wheel->current_angle to gamepad axis output
-        return; // wheel mode is exclusive — don't process other gestures
+        return; // wheel mode is exclusive – don't process other gestures
     }
 
     // finger-walk mode update
     if (_state.fingerwalk.active) {
         _fingerwalk_tick(&_state);
-        return; // standalone mode — no other gesture processing
+        return; // standalone mode – no other gesture processing
     }
 
     // standard gesture detection
@@ -154,13 +157,13 @@ void demuxer_loop(void) {
     // haptic tick (autoclick safety timer)
     haptic_tick();
 
-    // touchscreen update (not every frame — throttled inside if needed)
+    // touchscreen update (not every frame – throttled inside if needed)
     touchscreen_render_status(&_state);
 }
 
-// ── platform entry point ──────────────────────────────────────────────────────
+// 🟢 platform entry point 🟢
 // call these from your MCU's main() / Arduino setup()+loop() / RTOS task
-// example (Arduino-style):
-//
+// example (Arduino-style);
+// 
 //   void setup() { demuxer_init(); }
 //   void loop()  { demuxer_loop(); }
