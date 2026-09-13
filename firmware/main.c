@@ -97,12 +97,14 @@ void demuxer_calibrate_full(demuxer_state_t *s) {
 }
 
 // 🟢 init 🟢
-void demuxer_init(void) {
+bool demuxer_init(void) {
     flex_init();
     imu_init();
     foil_init();
     haptic_init();
-    touchscreen_init();
+    if (initPointerDevice() != POINTER_INIT_READY) {
+        return false;
+    }
 
     // load default profile
     _state.active_profile.mode = MODE_GAMEPAD;
@@ -115,6 +117,7 @@ void demuxer_init(void) {
 
     _state.calibrated = false;
     _state.battery_pct = BATTERY_DEFAULT_PCT; // Default battery level before actual read
+    return true;
 }
 
 // 🟢 main loop 🟢
@@ -165,5 +168,5 @@ void demuxer_loop(void) {
 // call these from your MCU's main() / Arduino setup()+loop() / RTOS task
 // example (Arduino-style);
 // 
-//   void setup() { demuxer_init(); }
+//   void setup() { if (!demuxer_init()) { /* report startup failure */ } }
 //   void loop()  { demuxer_loop(); }
