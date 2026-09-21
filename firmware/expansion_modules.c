@@ -1,19 +1,22 @@
 #include "demuxer.h"
 
-// 🟢 expansion_modules.c 🟢
-// Placeholder functions for future hardware expansions
-// Modify as expansion features are developed
+/* expansion_modules.c */
 
-void expansion_init(void) {
-    // Initialize any expansion modules, if plugged in
+/* Module responsible for managing expansion communications
+* such as wireless add-ons, IoT integrations. */
+
+static void expansion_init(void) {
+    /* Initialize wireless and IoT modules */
+    // Platform-specific init code for wireless/IOT communication chips
 }
 
-/** Update the state of each active expansion module. */
-void expansion_update(void) {
-    // Regular update/check for any active expansion modules
+static void expansion_update(void) {
+    /* Regular update process for maintaining communication
+    * with expansion modules. */
+    // Perform necessary communication checks and data exchange 
 }
 
-/** Run task-specific work for the connected expansion modules. */
-void expansion_task(void) {
-    // Task-specific logic for expansion modules
+void expansion_handler(void) {
+    expansion_init();
+    expansion_update();
 }
