@@ -4,11 +4,18 @@ project(Demuxer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add your source files here
+# Add source files here
 add_executable(demuxer
-    # Add your .cpp files
+    firmware/main.c
+    # Add other necessary source files if any
 )
 
-# Optional: Add tests if you have them
+# Include directories if needed
+include_directories(firmware)
+
+# Optional: Add libraries if needed
+# target_link_libraries(demuxer <library-name>)
+
+# Enable testing if needed
 enable_testing()
-# add_test(...)
+# add_test(<test-name> <executable>)
