@@ -4,22 +4,18 @@ project(Demuxer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Include directories
-include_directories(firmware)
-
-# Add source files
+# Add source files here
 add_executable(demuxer
     firmware/main.c
-    firmware/demuxer.h
-    firmware/expansion_modules.c
-    firmware/flex.c
-    firmware/foil.c
-    firmware/haptic.c
-    firmware/imu.c
-    firmware/touchscreen.c
-    firmware/wifi_brick.c
+    # Add other necessary source files if any
 )
 
-# Optional: Add tests if you have them
+# Include directories if needed
+include_directories(firmware)
+
+# Optional: Add libraries if needed
+# target_link_libraries(demuxer <library-name>)
+
+# Enable testing if needed
 enable_testing()
-# add_test(...)
+# add_test(<test-name> <executable>)

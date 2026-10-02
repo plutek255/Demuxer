@@ -1,69 +1,43 @@
-[Plutek](assets/IMG_0486.png)
+![Plutek](assets/IMG_0486.png)
 
 **Manufacturer:** Plutek Electronics LLC
-**Make:** Demuxer
+**Project:** Demuxer
 **Current State:** Beta (Init)
 
----
+### Setup Instructions
 
-## Product Lineup
-[...]
-
-### Demuxer Init — Project Setup
+To build and run the Demuxer project, ensure you have CMake installed (version 3.10 or higher).
 
 #### Building the Project
 
-To build the Demuxer project, ensure you have CMake installed and a suitable C++ compiler. Follow these steps:
-
-1. **Clone the repository:**
-
-   ```sh
+1. Clone the repository:
+   ```bash
    git clone https://github.com/plutek255/Demuxer.git
    cd Demuxer
    ```
 
-2. **Create a build directory:**
-
-   ```sh
-   mkdir build
-   cd build
-   ```
-
-3. **Run CMake:**
-
-   ```sh
+2. Create a build directory and run CMake:
+   ```bash
+   mkdir build && cd build
    cmake ..
-   ```
-
-4. **Build the project:**
-
-   ```sh
    make
    ```
 
-5. **Run the executable:**
-
-   The executable `demuxer` can be found in the `build` directory. Run it using:
-
-   ```sh
+3. Run the executable:
+   ```bash
    ./demuxer
    ```
 
-#### Project Overview
+### Product Lineup
 
-The Demuxer project initializes the Gaming Glove hardware, calibrated for hand gestures and interfacing with various computing platforms to deliver an immersive gaming experience.
+<!-- Product list and descriptions as already written -->
 
-#### Features and Components Used
+### Target Users & Use Cases
 
-- **Flex Sensors:** Detect finger bends for interaction.
-- **IMU:** Captures wrist gestures.
-- **Touchscreen:** Provides UI for status and configuration.
-- **Haptics:** Feedback system for gaming actions.
-
-For any issues during setup, refer to the documentation or contact the maintainers.
-
-[...]
+<!-- Intended target users and use cases -->
 
 ---
-## Demuxer Init — Full Spec
-[...]
+
+#### Core Features
+
+<!-- Core features in detail as listed -->
