@@ -1,29 +1,34 @@
 #include "demuxer.h"
 
-// 🌡️ haptic.c 🌡️
-// drives per-finger haptic motors (LRA or ERM)
-// Handles feedback patterns
-
-/* Initialize the haptic motor system. */
-void haptic_init(void) {
-    // Initialize haptic motor drivers
-    for (int i = 0; i < FINGER_COUNT; ++i) {
-        // Configure each motor channel
-    }
+/* 
+ * Sets up the haptic feedback motor system.
+ * Includes configuration for vibration patterns and motor setups.
+ */
+void initialize_haptic_system() {
+    // Initialize motor drivers and configure feedback patterns
+    setup_haptic_motors();
+    configure_feedback_patterns();
 }
 
-/* Activate haptic feedback for a finger with intensity and pattern. */
-void haptic_feedback(uint8_t finger, uint8_t intensity, uint16_t pattern) {
-    // Validate intensity range and apply pattern
-    if (finger < FINGER_COUNT) {
-        // Apply the feedback pattern on the specified finger's motor
-    }
+/* 
+ * Initializes and configures the haptic motors.
+ * Responsible for controlling motor power levels and operation modes.
+ */
+void setup_haptic_motors() {
+    // Implementation details (e.g., PWM configuration)
 }
 
-/* Main task loop for haptic feedback handling. */
-void haptic_task(void) {
-    // Example: Apply a demo feedback pattern
-    for (int i = 0; i < FINGER_COUNT; ++i) {
-        haptic_feedback(i, 50, 0xA5A5); // example pattern
-    }
+/* 
+ * Configures core feedback patterns used by the haptic system.
+ * This includes different vibration sequences for user feedback.
+ */
+void configure_feedback_patterns() {
+    // Implementation details (e.g., pattern sequencing)
+}
+
+int main(void) {
+    /* Initialize haptic feedback system */
+    initialize_haptic_system();
+    // Rest of the main loop logic
+    return 0;
 }
