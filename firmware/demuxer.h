@@ -114,6 +114,20 @@ typedef struct {
     bool              touchscreen_locked;
 } demuxer_state_t;
 
+// ── pointer device platform integration ──────────────────────────────────
+typedef enum {
+    POINTER_INIT_NOT_CONFIGURED = 0,
+    POINTER_INIT_HARDWARE_FAILED,
+    POINTER_INIT_RECEIVER_FAILED,
+    POINTER_INIT_READY
+} pointer_init_status_t;
+
+typedef struct {
+    bool (*configure_emitters)(uint8_t emitter_count);
+    bool (*connect_receiver)(uint8_t emitter_count);
+    void (*disable_emitters)(void);
+} pointer_platform_ops_t;
+
 // ── function prototypes ───────────────────────────────────────────────────────
 
 // flex.c
@@ -139,12 +153,14 @@ void haptic_autoclick_start(uint8_t finger, uint16_t freq_hz);
 void haptic_autoclick_stop(uint8_t finger);
 
 // touchscreen.c
-void touchscreen_init(void);
+void pointer_device_set_platform(const pointer_platform_ops_t *ops);
+pointer_init_status_t initPointerDevice(void);
+pointer_init_status_t pointer_device_status(void);
 void touchscreen_set_lock(bool locked);
 void touchscreen_render_status(const demuxer_state_t *state);
 
 // main.c
-void demuxer_init(void);
+bool demuxer_init(void);
 void demuxer_loop(void);
 void demuxer_calibrate_full(demuxer_state_t *state);
 
