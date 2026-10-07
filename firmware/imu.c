@@ -1,34 +1,36 @@
 #include "demuxer.h"
 #include <math.h>
 
-// 🌡️ imu.c 🌡️
-// handles 6DOF IMU reads (accel + gyro) and gesture detection
-// includes push, pull, twist, and tilt gesture input detection
-
-/* Initialize the IMU and setup interrupts. */
-void imu_init(void) {
+/* 
+ * Initializes the 6DOF IMU for wrist gesture sensing.
+ * Includes setting up reading processes and gesture detection algorithms.
+ */
+void initialize_imu_gestures() {
     // Initialize IMU hardware
-}
-
-/* Process IMU reads and detect gestures. */
-void process_imu_data(void) {
-    // Fetch and process accelerometer and gyro data
-    // Example: Detect tilt
-    float ax, ay, az; // acceleration values
+    setup_imu_hardware();
     
-    // Process raw data to determine presence of gestures
-    if (detect_tilt(ax, ay, az)) {
-        // Handle tilt gesture
-    }
+    // Setup gesture recognition
+    configure_gesture_detection();
 }
 
-/* Detect specific IMU-based gestures like tilt. */
-bool detect_tilt(float ax, float ay, float az) {
-    // Example: Simple tilt detection on a single axis
-    return ay > 0.7; // arbitrary threshold
+/* 
+ * Sets up the hardware interface for the IMU.
+ * Configures necessary registers and calibration settings for operation.
+ */
+void setup_imu_hardware() {
+    // Implementation details (e.g., I2C configuration)
 }
 
-/* Main task loop for handling IMU sensor data. */
-void imu_task(void) {
-    process_imu_data();
+/* 
+ * Configures the detection algorithms for push, pull, twist, and tilt gestures.
+ */
+void configure_gesture_detection() {
+    // Implementation details (e.g., algorithm initialization)
+}
+
+int main(void) {
+    /* Initialize IMU for gesture sensing */
+    initialize_imu_gestures();
+    // Rest of the main loop logic
+    return 0;
 }
