@@ -1,36 +1,20 @@
 #include "demuxer.h"
-#include <math.h>
 
-/* 
- * Initializes the 6DOF IMU for wrist gesture sensing.
- * Includes setting up reading processes and gesture detection algorithms.
- */
-void initialize_imu_gestures() {
-    // Initialize IMU hardware
-    setup_imu_hardware();
-    
-    // Setup gesture recognition
-    configure_gesture_detection();
+// 🌟 imu.c 🌟
+// Integrates 6DOF IMU for wrist gesture sensing: push, pull, twist, tilt
+
+// 🌟 function prototypes 🌟
+void initialize_imu(void);
+gesture_t detect_wrist_gesture(const imu_raw_t *imu_data);
+
+// 🌟 imu initialization 🌟
+void initialize_imu(void) {
+    // Set up I2C/SPI communication and configure IMU chip settings
 }
 
-/* 
- * Sets up the hardware interface for the IMU.
- * Configures necessary registers and calibration settings for operation.
- */
-void setup_imu_hardware() {
-    // Implementation details (e.g., I2C configuration)
-}
-
-/* 
- * Configures the detection algorithms for push, pull, twist, and tilt gestures.
- */
-void configure_gesture_detection() {
-    // Implementation details (e.g., algorithm initialization)
-}
-
-int main(void) {
-    /* Initialize IMU for gesture sensing */
-    initialize_imu_gestures();
-    // Rest of the main loop logic
-    return 0;
+// 🌟 detect wrist gesture 🌟
+// Detects and classifies wrist gestures from raw IMU data
+gesture_t detect_wrist_gesture(const imu_raw_t *imu_data) {
+    // Analyze IMU data to detect specific gestures
+    return GESTURE_NONE;
 }
