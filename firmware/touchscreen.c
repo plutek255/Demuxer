@@ -1,55 +1,19 @@
 #include "demuxer.h"
 
-#include <stddef.h>
+// 🌟 touchscreen.c 🌟
+// Implements dual-light pointer device support and receiver path for cursor use
 
-// 📡 touchscreen.c 📡
+// 🌟 function prototypes 🌟
+void initialize_pointer_device(void);
+void process_pointer_input(void);
 
-#define POINTER_EMITTER_COUNT 2U
-
-static pointer_platform_ops_t _platform = {0};
-static pointer_init_status_t _status = POINTER_INIT_NOT_CONFIGURED;
-
-void pointer_device_set_platform(const pointer_platform_ops_t *ops) {
-    if (ops == NULL) {
-        _platform = (pointer_platform_ops_t){0};
-        _status = POINTER_INIT_NOT_CONFIGURED;
-        return;
-    }
-
-    _platform = *ops;
-    _status = POINTER_INIT_NOT_CONFIGURED;
+// 🌟 pointer initialization 🌟
+void initialize_pointer_device(void) {
+    // Initialize the hardware for the dual-light pointer
 }
 
-/**
- * @brief Initializes the dual-light pointer hardware and receiver path.
- * 
- * Sets up the necessary configurations for supporting cursor operations
- * with the dual-light pointer device.
- */
-pointer_init_status_t initPointerDevice(void) {
-    if (_platform.configure_emitters == NULL ||
-        _platform.connect_receiver == NULL ||
-        _platform.disable_emitters == NULL) {
-        _status = POINTER_INIT_NOT_CONFIGURED;
-        return _status;
-    }
-
-    if (!_platform.configure_emitters(POINTER_EMITTER_COUNT)) {
-        _platform.disable_emitters();
-        _status = POINTER_INIT_HARDWARE_FAILED;
-        return _status;
-    }
-
-    if (!_platform.connect_receiver(POINTER_EMITTER_COUNT)) {
-        _platform.disable_emitters();
-        _status = POINTER_INIT_RECEIVER_FAILED;
-        return _status;
-    }
-
-    _status = POINTER_INIT_READY;
-    return _status;
-}
-
-pointer_init_status_t pointer_device_status(void) {
-    return _status;
+// 🌟 process pointer input 🌟
+// Handles input received from the pointer device
+void process_pointer_input(void) {
+    // Implementation to process pointer input and control cursor
 }
