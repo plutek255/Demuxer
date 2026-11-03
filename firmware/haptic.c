@@ -1,23 +1,26 @@
 #include "demuxer.h"
 
-// ── haptic.c ──────────────────────────────────────────────────────────────────
+// 🌟 haptic.c 🌟
 // drives per-finger haptic motors (LRA or ERM)
 // also handles the experimental autoclick feature (rapid pulse = simulated rapid input)
 
-// ── config ────────────────────────────────────────────────────────────────────
+// 🌟 function prototypes 🌟
+void setup_haptic_feedback_pattern(uint8_t finger, uint32_t pattern_id);
+
+// 🌟 config 🌟
 // TODO: replace with actual PWM pin assignments for your MCU
 static const uint8_t HAPTIC_PWM_PINS[FINGER_COUNT] = { 10, 11, 12, 13, 14 };
 
-// autoclick safety cap — firmware enforces this hard ceiling regardless of profile setting
-#define AUTOCLICK_MAX_FREQ_HZ   20      // 20 clicks/sec max — stay within fair-use bounds
-#define AUTOCLICK_WARNING_MS    30000   // warn after 30s of continuous autoclick use
+// autocalick safety cap ➔ firmware enforces this hard ceiling regardless of profile setting
+#define AUTOCLICK_MAX_FREQ_HZ    20       // 20 clicks/sec max ➔ stay within fair-use bounds
+#define AUTOCLICK_WARNING_MS     30000    // warn after 30s of continuous autoclick use
 
-// ── internal state ────────────────────────────────────────────────────────────
-static bool     _autoclick_active[FINGER_COUNT]  = {false};
+// 🌟 internal state 🌟
+static bool    _autoclick_active[FINGER_COUNT]   = {false};
 static uint16_t _autoclick_freq[FINGER_COUNT]    = {0};
 static uint32_t _autoclick_start_ms[FINGER_COUNT] = {0};
 
-// stubs — replace with platform PWM driver calls
+// stubs 🌟 replace with platform PWM driver calls
 static void _pwm_set(uint8_t pin, uint16_t freq_hz, uint8_t duty) {
     (void)pin; (void)freq_hz; (void)duty;
 }
@@ -30,7 +33,7 @@ static uint32_t _millis(void) {
     return 0;
 }
 
-// ── init ──────────────────────────────────────────────────────────────────────
+// 🌟 haptic init 🌟
 void haptic_init(void) {
     for (int i = 0; i < FINGER_COUNT; i++) {
         _pwm_stop(HAPTIC_PWM_PINS[i]);
@@ -38,25 +41,32 @@ void haptic_init(void) {
     }
 }
 
-// ── single pulse ──────────────────────────────────────────────────────────────
+// 🌟 single pulse 🌟
 // fires a one-shot haptic pulse on a finger motor
 // freq_hz = vibration frequency, duration_ms = how long
 void haptic_pulse(uint8_t finger, uint16_t freq_hz, uint16_t duration_ms) {
     if (finger >= FINGER_COUNT) return;
     _pwm_set(HAPTIC_PWM_PINS[finger], freq_hz, 128); // 50% duty
-    // TODO: use a non-blocking timer to stop after duration_ms
-    // for now this is a placeholder — platform timer needed
+    // TODO: use a non-blocking timer to stop after duration_ms;
+    // for now this is a placeholder ➔ platform timer needed
     (void)duration_ms;
     // after duration: _pwm_stop(HAPTIC_PWM_PINS[finger]);
 }
 
-// ── autoclick ─────────────────────────────────────────────────────────────────
+// 🌟 setup feedback pattern 🌟
+// Configure specific vibration patterns for haptic feedback
+void setup_haptic_feedback_pattern(uint8_t finger, uint32_t pattern_id) {
+    // Sets up the haptic feedback pattern for a specified finger
+    // Implementation logic to configure different patterns
+}
+
+// 🌟 autoclick 🌟
 // starts continuous rapid vibration on a finger = simulates rapid button presses
 // frequency is capped at AUTOCLICK_MAX_FREQ_HZ regardless of what's passed in
 void haptic_autoclick_start(uint8_t finger, uint16_t freq_hz) {
     if (finger >= FINGER_COUNT) return;
 
-    // hard cap — safety requirement, do not remove
+    // hard cap ➔ safety requirement, do not remove
     if (freq_hz > AUTOCLICK_MAX_FREQ_HZ) freq_hz = AUTOCLICK_MAX_FREQ_HZ;
 
     _autoclick_freq[finger]    = freq_hz;
@@ -72,7 +82,7 @@ void haptic_autoclick_stop(uint8_t finger) {
     _pwm_stop(HAPTIC_PWM_PINS[finger]);
 }
 
-// ── tick (call in main loop) ──────────────────────────────────────────────────
+// 🌟 tick (call in main loop) 🌟
 // checks autoclick usage timers and stops if over warning threshold
 void haptic_tick(void) {
     uint32_t now = _millis();
@@ -80,7 +90,7 @@ void haptic_tick(void) {
         if (!_autoclick_active[i]) continue;
         uint32_t elapsed = now - _autoclick_start_ms[i];
         if (elapsed >= AUTOCLICK_WARNING_MS) {
-            // force stop + flag warning — long continuous use may cause discomfort
+            // force stop + flag warning ➔ long continuous use may cause discomfort
             haptic_autoclick_stop(i);
             // TODO: trigger a touchscreen warning notification
         }
