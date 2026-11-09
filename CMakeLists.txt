@@ -7,8 +7,5 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add your source files here
 add_executable(demuxer
     # Add your .cpp files
+    firmware/usb_output.c  # Include the new USB output source file
 )
-
-# Optional: Add tests if you have them
-enable_testing()
-# add_test(...)
