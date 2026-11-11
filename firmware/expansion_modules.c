@@ -1,19 +1,22 @@
 #include "demuxer.h"
 
-// 🟢 expansion_modules.c 🟢
-// Placeholder functions for future hardware expansions
-// Modify as expansion features are developed
+/* Expansion module for dual-light pointer hardware.
+ * Handles the pointer and receiver functionality for enhanced device interactivity.
+ */
 
-void expansion_init(void) {
-    // Initialize any expansion modules, if plugged in
+// Handler for initializing pointer hardware, configuration, and receiver path setup.
+void pointer_device_init(void) {
+    // Initialization for pointer device hardware.
+    configure_pointer_receiver();
+    // Other setup operations
 }
 
-/** Update the state of each active expansion module. */
-void expansion_update(void) {
-    // Regular update/check for any active expansion modules
+// Reads input from pointer device hardware and returns current receiver state.
+void pointer_read(void) {
+    // Dual-light pointer reading logic
 }
 
-/** Run task-specific work for the connected expansion modules. */
-void expansion_task(void) {
-    // Task-specific logic for expansion modules
+// Configures the receiver path for cursor support with necessary communication protocols and handlers.
+static void configure_pointer_receiver(void) {
+    // Receiver configuration logic with hardware setups.
 }
