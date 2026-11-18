@@ -1,0 +1,32 @@
+{
+  "name": "wii_u_gamepad",
+  "mode": "gamepad",
+  "button_mappings": {
+    "A": "button_a",
+    "B": "button_b",
+    "X": "button_x",
+    "Y": "button_y",
+    "START": "start_button",
+    "SELECT": "select_button"
+  },
+  "stick_mappings": {
+    "left": {
+      "up": "left_stick_up",
+      "down": "left_stick_down",
+      "left": "left_stick_left",
+      "right": "left_stick_right"
+    },
+    "right": {
+      "up": "right_stick_up",
+      "down": "right_stick_down",
+      "left": "right_stick_left",
+      "right": "right_stick_right"
+    }
+  },
+  "trigger_mappings": {
+    "L": "trigger_left",
+    "R": "trigger_right",
+    "ZL": "trigger_zl",
+    "ZR": "trigger_zr"
+  }
+}
